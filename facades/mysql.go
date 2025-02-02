@@ -10,7 +10,7 @@ import (
 
 func Mysql(connection string) driver.Driver {
 	if mysql.App == nil {
-		log.Fatalln("please register postgres service provider")
+		log.Fatalln("please register Mysql service provider")
 		return nil
 	}
 
