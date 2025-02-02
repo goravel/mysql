@@ -9,7 +9,6 @@ import (
 	contractsschema "github.com/goravel/framework/contracts/database/schema"
 	"github.com/goravel/framework/database/schema"
 	mocksschema "github.com/goravel/framework/mocks/database/schema"
-	"github.com/goravel/framework/support/convert"
 )
 
 type GrammarSuite struct {
@@ -51,87 +50,20 @@ func (s *GrammarSuite) TestCompileChange() {
 	mockColumn := mocksschema.NewColumnDefinition(s.T())
 
 	mockBlueprint.EXPECT().GetTableName().Return("users").Once()
-	mockColumn.EXPECT().GetName().Return("name").Times(3)
-	mockColumn.EXPECT().GetType().Return("string").Once()
+	mockColumn.EXPECT().GetName().Return("name").Once()
+	mockColumn.EXPECT().GetType().Return("string").Twice()
 	mockColumn.EXPECT().GetDefault().Return("goravel").Twice()
 	mockColumn.EXPECT().GetNullable().Return(false).Once()
 	mockColumn.EXPECT().GetLength().Return(1).Once()
-	mockColumn.EXPECT().IsChange().Return(true).Times(3)
-	mockColumn.EXPECT().GetAutoIncrement().Return(false).Once()
+	mockColumn.EXPECT().GetOnUpdate().Return(nil).Once()
+	mockColumn.EXPECT().GetComment().Return("comment").Once()
+	mockColumn.EXPECT().GetUnsigned().Return(false).Once()
 
 	sql := s.grammar.CompileChange(mockBlueprint, &contractsschema.Command{
 		Column: mockColumn,
 	})
 
-	s.Equal([]string{
-		`alter table "goravel_users" alter column "name" type varchar(1), alter column "name" set default 'goravel', alter column "name" set not null`,
-	}, sql)
-}
-
-func (s *GrammarSuite) TestCompileColumns() {
-	tests := []struct {
-		name          string
-		schema        string
-		table         string
-		expectedSQL   string
-		expectedError error
-	}{
-		{
-			name:   "with schema and table",
-			schema: "public",
-			table:  "users",
-			expectedSQL: `select a.attname as name, t.typname as type_name, format_type(a.atttypid, a.atttypmod) as type, ` +
-				`(select tc.collcollate from pg_catalog.pg_collation tc where tc.oid = a.attcollation) as collation, ` +
-				`not a.attnotnull as nullable, ` +
-				`(select pg_get_expr(adbin, adrelid) from pg_attrdef where c.oid = pg_attrdef.adrelid and pg_attrdef.adnum = a.attnum) as default, ` +
-				`col_description(c.oid, a.attnum) as comment ` +
-				`from pg_attribute a, pg_class c, pg_type t, pg_namespace n ` +
-				`where c.relname = 'goravel_users' and n.nspname = 'public' and a.attnum > 0 and a.attrelid = c.oid and a.atttypid = t.oid and n.oid = c.relnamespace ` +
-				`order by a.attnum`,
-			expectedError: nil,
-		},
-		{
-			name:   "with table containing dots",
-			schema: "public",
-			table:  "schema.users",
-			expectedSQL: `select a.attname as name, t.typname as type_name, format_type(a.atttypid, a.atttypmod) as type, ` +
-				`(select tc.collcollate from pg_catalog.pg_collation tc where tc.oid = a.attcollation) as collation, ` +
-				`not a.attnotnull as nullable, ` +
-				`(select pg_get_expr(adbin, adrelid) from pg_attrdef where c.oid = pg_attrdef.adrelid and pg_attrdef.adnum = a.attnum) as default, ` +
-				`col_description(c.oid, a.attnum) as comment ` +
-				`from pg_attribute a, pg_class c, pg_type t, pg_namespace n ` +
-				`where c.relname = 'goravel_users' and n.nspname = 'schema' and a.attnum > 0 and a.attrelid = c.oid and a.atttypid = t.oid and n.oid = c.relnamespace ` +
-				`order by a.attnum`,
-			expectedError: nil,
-		},
-	}
-
-	for _, test := range tests {
-		s.Run(test.name, func() {
-			sql, err := s.grammar.CompileColumns(test.schema, test.table)
-			if test.expectedError != nil {
-				s.Equal(test.expectedError.Error(), err.Error())
-			} else {
-				s.Nil(err)
-				s.Equal(test.expectedSQL, sql)
-			}
-		})
-	}
-}
-
-func (s *GrammarSuite) TestCompileComment() {
-	mockBlueprint := mocksschema.NewBlueprint(s.T())
-	mockColumnDefinition := mocksschema.NewColumnDefinition(s.T())
-	mockBlueprint.On("GetTableName").Return("users").Once()
-	mockColumnDefinition.On("GetName").Return("id").Once()
-	mockColumnDefinition.On("IsSetComment").Return(true).Once()
-	mockColumnDefinition.On("GetComment").Return("comment").Once()
-
-	sql := s.grammar.CompileComment(mockBlueprint, &contractsschema.Command{
-		Column: mockColumnDefinition,
-	})
-
-	s.Equal(`comment on column "goravel_users"."id" is 'comment'`, sql)
+	s.Equal([]string{"alter table `goravel_users` modify `name` varchar(1) not null default 'goravel' comment 'comment'"}, sql)
 }
 
 func (s *GrammarSuite) TestCompileCreate() {
@@ -140,6 +72,14 @@ func (s *GrammarSuite) TestCompileCreate() {
 	mockBlueprint := mocksschema.NewBlueprint(s.T())
 
 	// postgres.go::CompileCreate
+	primaryCommand := &contractsschema.Command{
+		Name:      "primary",
+		Columns:   []string{"role_id", "user_id"},
+		Algorithm: "btree",
+	}
+	mockBlueprint.EXPECT().GetCommands().Return([]*contractsschema.Command{
+		primaryCommand,
+	}).Once()
 	mockBlueprint.EXPECT().GetTableName().Return("users").Once()
 	// utils.go::getColumns
 	mockBlueprint.EXPECT().GetAddedColumns().Return([]contractsschema.ColumnDefinition{
@@ -156,10 +96,11 @@ func (s *GrammarSuite) TestCompileCreate() {
 	// postgres.go::ModifyIncrement
 	mockBlueprint.EXPECT().HasCommand("primary").Return(false).Once()
 	mockColumn1.EXPECT().GetType().Return("integer").Once()
-	mockColumn1.EXPECT().GetAutoIncrement().Return(true).Once()
 	// postgres.go::ModifyNullable
 	mockColumn1.EXPECT().GetNullable().Return(false).Once()
-	mockColumn1.EXPECT().IsChange().Return(false).Times(3)
+	mockColumn1.EXPECT().GetOnUpdate().Return(nil).Once()
+	mockColumn1.EXPECT().GetComment().Return("id").Once()
+	mockColumn1.EXPECT().GetUnsigned().Return(true).Once()
 
 	// utils.go::getColumns
 	mockColumn2.EXPECT().GetName().Return("name").Once()
@@ -170,40 +111,35 @@ func (s *GrammarSuite) TestCompileCreate() {
 	// postgres.go::ModifyDefault
 	mockColumn2.EXPECT().GetDefault().Return(nil).Once()
 	// postgres.go::ModifyIncrement
-	mockBlueprint.EXPECT().HasCommand("primary").Return(false).Once()
 	mockColumn2.EXPECT().GetType().Return("string").Once()
 	// postgres.go::ModifyNullable
 	mockColumn2.EXPECT().GetNullable().Return(true).Once()
-	mockColumn2.EXPECT().IsChange().Return(false).Times(3)
+	mockColumn2.EXPECT().GetOnUpdate().Return(nil).Once()
+	mockColumn2.EXPECT().GetComment().Return("name").Once()
+	mockColumn2.EXPECT().GetUnsigned().Return(false).Once()
 
-	s.Equal(`create table "goravel_users" ("id" serial primary key not null, "name" varchar(100) null)`,
+	s.Equal("create table `goravel_users` (`id` int unsigned not null auto_increment primary key comment 'id', `name` varchar(100) null comment 'name', primary key using btree(`role_id`, `user_id`))",
 		s.grammar.CompileCreate(mockBlueprint))
+	s.True(primaryCommand.ShouldBeSkipped)
 }
 
 func (s *GrammarSuite) TestCompileDropAllTables() {
-	s.Equal(`drop table "public"."domain", "public"."users" cascade`, s.grammar.CompileDropAllTables("public", []contractsschema.Table{
-		{Schema: "public", Name: "domain"},
-		{Schema: "public", Name: "users"},
-		{Schema: "user", Name: "email"},
-	}))
-}
-
-func (s *GrammarSuite) TestCompileDropAllTypes() {
 	s.Equal([]string{
-		`drop type "public"."user" cascade`,
-		`drop domain "public"."domain" cascade`,
-	}, s.grammar.CompileDropAllTypes("public", []contractsschema.Type{
-		{Schema: "public", Name: "domain", Type: "domain"},
-		{Schema: "public", Name: "user"},
-		{Schema: "user", Name: "email"},
+		"SET FOREIGN_KEY_CHECKS=0;",
+		"drop table `domain`, `email`",
+		"SET FOREIGN_KEY_CHECKS=1;",
+	}, s.grammar.CompileDropAllTables("goravel_", []contractsschema.Table{
+		{Name: "domain"},
+		{Name: "email"},
 	}))
 }
 
 func (s *GrammarSuite) TestCompileDropAllViews() {
-	s.Equal(`drop view "public"."domain", "public"."users" cascade`, s.grammar.CompileDropAllViews("public", []contractsschema.View{
-		{Schema: "public", Name: "domain"},
-		{Schema: "public", Name: "users"},
-		{Schema: "user", Name: "email"},
+	s.Equal([]string{
+		"drop view `domain`, `email`",
+	}, s.grammar.CompileDropAllViews("goravel_", []contractsschema.View{
+		{Name: "domain"},
+		{Name: "email"},
 	}))
 }
 
@@ -211,8 +147,10 @@ func (s *GrammarSuite) TestCompileDropColumn() {
 	mockBlueprint := mocksschema.NewBlueprint(s.T())
 	mockBlueprint.EXPECT().GetTableName().Return("users").Once()
 
-	s.Equal([]string([]string{`alter table "goravel_users" drop column "id", drop column "email"`}), s.grammar.CompileDropColumn(mockBlueprint, &contractsschema.Command{
-		Columns: []string{"id", "email"},
+	s.Equal([]string{
+		"alter table `goravel_users` drop `id`, drop `name`",
+	}, s.grammar.CompileDropColumn(mockBlueprint, &contractsschema.Command{
+		Columns: []string{"id", "name"},
 	}))
 }
 
@@ -220,14 +158,7 @@ func (s *GrammarSuite) TestCompileDropIfExists() {
 	mockBlueprint := mocksschema.NewBlueprint(s.T())
 	mockBlueprint.EXPECT().GetTableName().Return("users").Once()
 
-	s.Equal(`drop table if exists "goravel_users"`, s.grammar.CompileDropIfExists(mockBlueprint))
-}
-
-func (s *GrammarSuite) TestCompileDropPrimary() {
-	mockBlueprint := mocksschema.NewBlueprint(s.T())
-	mockBlueprint.EXPECT().GetTableName().Return("users").Once()
-
-	s.Equal(`alter table "goravel_users" drop constraint "goravel_users_pkey"`, s.grammar.CompileDropPrimary(mockBlueprint, &contractsschema.Command{}))
+	s.Equal("drop table if exists `goravel_users`", s.grammar.CompileDropIfExists(mockBlueprint))
 }
 
 func (s *GrammarSuite) TestCompileForeign() {
@@ -253,7 +184,7 @@ func (s *GrammarSuite) TestCompileForeign() {
 				OnDelete:   "cascade",
 				OnUpdate:   "restrict",
 			},
-			expectSql: `alter table "goravel_users" add constraint "fk_users_role_id" foreign key ("role_id", "user_id") references "goravel_roles" ("id", "user_id") on delete cascade on update restrict`,
+			expectSql: "alter table `goravel_users` add constraint `fk_users_role_id` foreign key (`role_id`, `user_id`) references `goravel_roles` (`id`, `user_id`) on delete cascade on update restrict",
 		},
 		{
 			name: "without on delete and on update",
@@ -263,7 +194,7 @@ func (s *GrammarSuite) TestCompileForeign() {
 				On:         "roles",
 				References: []string{"id", "user_id"},
 			},
-			expectSql: `alter table "goravel_users" add constraint "fk_users_role_id" foreign key ("role_id", "user_id") references "goravel_roles" ("id", "user_id")`,
+			expectSql: "alter table `goravel_users` add constraint `fk_users_role_id` foreign key (`role_id`, `user_id`) references `goravel_roles` (`id`, `user_id`)",
 		},
 	}
 
@@ -275,16 +206,6 @@ func (s *GrammarSuite) TestCompileForeign() {
 			s.Equal(test.expectSql, sql)
 		})
 	}
-}
-
-func (s *GrammarSuite) TestCompileFullText() {
-	mockBlueprint := mocksschema.NewBlueprint(s.T())
-	mockBlueprint.EXPECT().GetTableName().Return("users").Once()
-
-	s.Equal(`create index "users_email_fulltext" on "goravel_users" using gin(to_tsvector('english', "id") || to_tsvector('english', "email"))`, s.grammar.CompileFullText(mockBlueprint, &contractsschema.Command{
-		Index:   "users_email_fulltext",
-		Columns: []string{"id", "email"},
-	}))
 }
 
 func (s *GrammarSuite) TestCompileIndex() {
@@ -307,7 +228,7 @@ func (s *GrammarSuite) TestCompileIndex() {
 				Columns:   []string{"role_id", "user_id"},
 				Algorithm: "btree",
 			},
-			expectSql: `create index "fk_users_role_id" on "goravel_users" using btree ("role_id", "user_id")`,
+			expectSql: "alter table `goravel_users` add index `fk_users_role_id` using btree(`role_id`, `user_id`)",
 		},
 		{
 			name: "without Algorithm",
@@ -315,7 +236,7 @@ func (s *GrammarSuite) TestCompileIndex() {
 				Index:   "fk_users_role_id",
 				Columns: []string{"role_id", "user_id"},
 			},
-			expectSql: `create index "fk_users_role_id" on "goravel_users" ("role_id", "user_id")`,
+			expectSql: "alter table `goravel_users` add index `fk_users_role_id`(`role_id`, `user_id`)",
 		},
 	}
 
@@ -333,51 +254,26 @@ func (s *GrammarSuite) TestCompilePrimary() {
 	mockBlueprint := mocksschema.NewBlueprint(s.T())
 	mockBlueprint.EXPECT().GetTableName().Return("users").Once()
 
-	s.Equal(`alter table "goravel_users" add primary key ("role_id", "user_id")`, s.grammar.CompilePrimary(mockBlueprint, &contractsschema.Command{
+	s.Equal("alter table `goravel_users` add primary key (`role_id`, `user_id`)", s.grammar.CompilePrimary(mockBlueprint, &contractsschema.Command{
 		Columns: []string{"role_id", "user_id"},
 	}))
 }
 
-func (s *GrammarSuite) TestCompileUnique() {
-	tests := []struct {
-		name               string
-		deferrable         *bool
-		initiallyImmediate *bool
-		expectSql          string
-	}{
-		{
-			name:               "with deferrable and initially immediate",
-			deferrable:         convert.Pointer(true),
-			initiallyImmediate: convert.Pointer(true),
-			expectSql:          `alter table "goravel_users" add constraint "unique_users_email" unique ("id", "email") deferrable initially immediate`,
-		},
-		{
-			name:               "with deferrable and initially immediate, both false",
-			deferrable:         convert.Pointer(false),
-			initiallyImmediate: convert.Pointer(false),
-			expectSql:          `alter table "goravel_users" add constraint "unique_users_email" unique ("id", "email") not deferrable initially deferred`,
-		},
-		{
-			name:      "without deferrable and initially immediate",
-			expectSql: `alter table "goravel_users" add constraint "unique_users_email" unique ("id", "email")`,
-		},
-	}
+func (s *GrammarSuite) TestCompileKey() {
+	mockBlueprint := mocksschema.NewBlueprint(s.T())
+	mockBlueprint.EXPECT().GetTableName().Return("users").Twice()
 
-	for _, test := range tests {
-		s.Run(test.name, func() {
-			mockBlueprint := mocksschema.NewBlueprint(s.T())
-			mockBlueprint.EXPECT().GetTableName().Return("users").Once()
+	s.Equal("alter table `goravel_users` add unique `index`(`id`, `name`)", s.grammar.compileKey(mockBlueprint, &contractsschema.Command{
+		Algorithm: "",
+		Columns:   []string{"id", "name"},
+		Index:     "index",
+	}, "unique"))
 
-			sql := s.grammar.CompileUnique(mockBlueprint, &contractsschema.Command{
-				Index:              "unique_users_email",
-				Columns:            []string{"id", "email"},
-				Deferrable:         test.deferrable,
-				InitiallyImmediate: test.initiallyImmediate,
-			})
-
-			s.Equal(test.expectSql, sql)
-		})
-	}
+	s.Equal("alter table `goravel_users` add unique `index` using btree(`id`, `name`)", s.grammar.compileKey(mockBlueprint, &contractsschema.Command{
+		Algorithm: "btree",
+		Columns:   []string{"id", "name"},
+		Index:     "index",
+	}, "unique"))
 }
 
 func (s *GrammarSuite) TestGetColumns() {
@@ -388,23 +284,27 @@ func (s *GrammarSuite) TestGetColumns() {
 	mockBlueprint.EXPECT().GetAddedColumns().Return([]contractsschema.ColumnDefinition{
 		mockColumn1, mockColumn2,
 	}).Once()
-	mockBlueprint.EXPECT().HasCommand("primary").Return(false).Twice()
+	mockBlueprint.EXPECT().HasCommand("primary").Return(false).Once()
 
 	mockColumn1.EXPECT().GetName().Return("id").Once()
 	mockColumn1.EXPECT().GetType().Return("integer").Twice()
 	mockColumn1.EXPECT().GetDefault().Return(nil).Once()
 	mockColumn1.EXPECT().GetNullable().Return(false).Once()
-	mockColumn1.EXPECT().GetAutoIncrement().Return(true).Twice()
-	mockColumn1.EXPECT().IsChange().Return(false).Times(3)
+	mockColumn1.EXPECT().GetOnUpdate().Return(nil).Once()
+	mockColumn1.EXPECT().GetAutoIncrement().Return(true).Once()
+	mockColumn1.EXPECT().GetComment().Return("id").Once()
+	mockColumn1.EXPECT().GetUnsigned().Return(true).Once()
 
 	mockColumn2.EXPECT().GetName().Return("name").Once()
 	mockColumn2.EXPECT().GetType().Return("string").Twice()
 	mockColumn2.EXPECT().GetDefault().Return("goravel").Twice()
 	mockColumn2.EXPECT().GetNullable().Return(true).Once()
+	mockColumn2.EXPECT().GetOnUpdate().Return(nil).Once()
 	mockColumn2.EXPECT().GetLength().Return(10).Once()
-	mockColumn2.EXPECT().IsChange().Return(false).Times(3)
+	mockColumn2.EXPECT().GetComment().Return("name").Once()
+	mockColumn2.EXPECT().GetUnsigned().Return(false).Once()
 
-	s.Equal([]string{"\"id\" serial primary key not null", "\"name\" varchar(10) default 'goravel' null"}, s.grammar.getColumns(mockBlueprint))
+	s.Equal([]string{"`id` int unsigned not null auto_increment primary key comment 'id'", "`name` varchar(10) null default 'goravel' comment 'name'"}, s.grammar.getColumns(mockBlueprint))
 }
 
 func (s *GrammarSuite) TestModifyDefault() {
@@ -421,42 +321,15 @@ func (s *GrammarSuite) TestModifyDefault() {
 		{
 			name: "without change and default is nil",
 			setup: func() {
-				mockColumn.EXPECT().IsChange().Return(false).Once()
 				mockColumn.EXPECT().GetDefault().Return(nil).Once()
 			},
-		},
-		{
-			name: "with change and auto increment",
-			setup: func() {
-				mockColumn.EXPECT().IsChange().Return(true).Once()
-				mockColumn.EXPECT().GetAutoIncrement().Return(true).Once()
-			},
-		},
-		{
-			name: "with change and default is nil",
-			setup: func() {
-				mockColumn.EXPECT().IsChange().Return(true).Once()
-				mockColumn.EXPECT().GetAutoIncrement().Return(false).Once()
-				mockColumn.EXPECT().GetDefault().Return(nil).Once()
-			},
-			expectSql: " drop default",
 		},
 		{
 			name: "without change and default is not nil",
 			setup: func() {
-				mockColumn.EXPECT().IsChange().Return(false).Once()
 				mockColumn.EXPECT().GetDefault().Return("goravel").Twice()
 			},
 			expectSql: " default 'goravel'",
-		},
-		{
-			name: "with change and default is not nil",
-			setup: func() {
-				mockColumn.EXPECT().IsChange().Return(true).Once()
-				mockColumn.EXPECT().GetAutoIncrement().Return(false).Once()
-				mockColumn.EXPECT().GetDefault().Return("goravel").Twice()
-			},
-			expectSql: " set default 'goravel'",
 		},
 	}
 
@@ -475,62 +348,15 @@ func (s *GrammarSuite) TestModifyDefault() {
 }
 
 func (s *GrammarSuite) TestModifyNullable() {
-	var (
-		mockBlueprint *mocksschema.Blueprint
-		mockColumn    *mocksschema.ColumnDefinition
-	)
+	mockBlueprint := mocksschema.NewBlueprint(s.T())
+	mockColumn := mocksschema.NewColumnDefinition(s.T())
+	mockColumn.EXPECT().GetNullable().Return(true).Once()
 
-	tests := []struct {
-		name      string
-		setup     func()
-		expectSql string
-	}{
-		{
-			name: "without change and nullable",
-			setup: func() {
-				mockColumn.EXPECT().IsChange().Return(false).Once()
-				mockColumn.EXPECT().GetNullable().Return(true).Once()
-			},
-			expectSql: " null",
-		},
-		{
-			name: "with change and and nullable",
-			setup: func() {
-				mockColumn.EXPECT().IsChange().Return(true).Once()
-				mockColumn.EXPECT().GetNullable().Return(true).Once()
-			},
-			expectSql: " drop not null",
-		},
-		{
-			name: "without change and not nullable",
-			setup: func() {
-				mockColumn.EXPECT().IsChange().Return(false).Once()
-				mockColumn.EXPECT().GetNullable().Return(false).Once()
-			},
-			expectSql: " not null",
-		},
-		{
-			name: "with change and not nullable",
-			setup: func() {
-				mockColumn.EXPECT().IsChange().Return(true).Once()
-				mockColumn.EXPECT().GetNullable().Return(false).Once()
-			},
-			expectSql: " set not null",
-		},
-	}
+	s.Equal(" null", s.grammar.ModifyNullable(mockBlueprint, mockColumn))
 
-	for _, test := range tests {
-		s.Run(test.name, func() {
-			mockBlueprint = mocksschema.NewBlueprint(s.T())
-			mockColumn = mocksschema.NewColumnDefinition(s.T())
+	mockColumn.EXPECT().GetNullable().Return(false).Once()
 
-			test.setup()
-
-			sql := s.grammar.ModifyNullable(mockBlueprint, mockColumn)
-
-			s.Equal(test.expectSql, sql)
-		})
-	}
+	s.Equal(" not null", s.grammar.ModifyNullable(mockBlueprint, mockColumn))
 }
 
 func (s *GrammarSuite) TestModifyIncrement() {
@@ -540,21 +366,47 @@ func (s *GrammarSuite) TestModifyIncrement() {
 	mockBlueprint.EXPECT().HasCommand("primary").Return(false).Once()
 	mockColumn.EXPECT().GetType().Return("bigInteger").Once()
 	mockColumn.EXPECT().GetAutoIncrement().Return(true).Once()
-	mockColumn.EXPECT().IsChange().Return(false).Once()
 
-	s.Equal(" primary key", s.grammar.ModifyIncrement(mockBlueprint, mockColumn))
+	s.Equal(" auto_increment primary key", s.grammar.ModifyIncrement(mockBlueprint, mockColumn))
 }
 
-func (s *GrammarSuite) TestTypeBigInteger() {
-	mockColumn1 := mocksschema.NewColumnDefinition(s.T())
-	mockColumn1.EXPECT().GetAutoIncrement().Return(true).Once()
+func (s *GrammarSuite) TestModifyOnUpdate() {
+	mockBlueprint := mocksschema.NewBlueprint(s.T())
+	mockColumn := mocksschema.NewColumnDefinition(s.T())
+	mockColumn.EXPECT().GetOnUpdate().Return(schema.Expression("CURRENT_TIMESTAMP")).Once()
 
-	s.Equal("bigserial", s.grammar.TypeBigInteger(mockColumn1))
+	s.Equal(" on update CURRENT_TIMESTAMP", s.grammar.ModifyOnUpdate(mockBlueprint, mockColumn))
 
-	mockColumn2 := mocksschema.NewColumnDefinition(s.T())
-	mockColumn2.EXPECT().GetAutoIncrement().Return(false).Once()
+	mockColumn.EXPECT().GetOnUpdate().Return("CURRENT_TIMESTAMP").Once()
+	s.Equal(" on update CURRENT_TIMESTAMP", s.grammar.ModifyOnUpdate(mockBlueprint, mockColumn))
 
-	s.Equal("bigint", s.grammar.TypeBigInteger(mockColumn2))
+	mockColumn.EXPECT().GetOnUpdate().Return("").Once()
+	s.Empty(s.grammar.ModifyOnUpdate(mockBlueprint, mockColumn))
+
+	mockColumn.EXPECT().GetOnUpdate().Return(nil).Once()
+	s.Empty(s.grammar.ModifyOnUpdate(mockBlueprint, mockColumn))
+}
+
+func (s *GrammarSuite) TestTypeBoolean() {
+	mockColumn := mocksschema.NewColumnDefinition(s.T())
+
+	s.Equal("tinyint(1)", s.grammar.TypeBoolean(mockColumn))
+}
+
+func (s *GrammarSuite) TestTypeDateTime() {
+	mockColumn := mocksschema.NewColumnDefinition(s.T())
+	mockColumn.EXPECT().GetPrecision().Return(3).Once()
+	mockColumn.EXPECT().GetUseCurrent().Return(true).Once()
+	mockColumn.EXPECT().Default(schema.Expression("CURRENT_TIMESTAMP(3)")).Return(mockColumn).Once()
+	mockColumn.EXPECT().GetUseCurrentOnUpdate().Return(true).Once()
+	mockColumn.EXPECT().OnUpdate(schema.Expression("CURRENT_TIMESTAMP(3)")).Return(mockColumn).Once()
+	s.Equal("datetime(3)", s.grammar.TypeDateTime(mockColumn))
+
+	mockColumn = mocksschema.NewColumnDefinition(s.T())
+	mockColumn.EXPECT().GetPrecision().Return(0).Once()
+	mockColumn.EXPECT().GetUseCurrent().Return(false).Once()
+	mockColumn.EXPECT().GetUseCurrentOnUpdate().Return(false).Once()
+	s.Equal("datetime", s.grammar.TypeDateTime(mockColumn))
 }
 
 func (s *GrammarSuite) TestTypeDecimal() {
@@ -567,10 +419,9 @@ func (s *GrammarSuite) TestTypeDecimal() {
 
 func (s *GrammarSuite) TestTypeEnum() {
 	mockColumn := mocksschema.NewColumnDefinition(s.T())
-	mockColumn.EXPECT().GetName().Return("a").Once()
 	mockColumn.EXPECT().GetAllowed().Return([]any{"a", "b"}).Once()
 
-	s.Equal(`varchar(255) check ("a" in ('a', 'b'))`, s.grammar.TypeEnum(mockColumn))
+	s.Equal(`enum('a', 'b')`, s.grammar.TypeEnum(mockColumn))
 }
 
 func (s *GrammarSuite) TestTypeFloat() {
@@ -584,18 +435,6 @@ func (s *GrammarSuite) TestTypeFloat() {
 	s.Equal("float(2)", s.grammar.TypeFloat(mockColumn))
 }
 
-func (s *GrammarSuite) TestTypeInteger() {
-	mockColumn1 := mocksschema.NewColumnDefinition(s.T())
-	mockColumn1.EXPECT().GetAutoIncrement().Return(true).Once()
-
-	s.Equal("serial", s.grammar.TypeInteger(mockColumn1))
-
-	mockColumn2 := mocksschema.NewColumnDefinition(s.T())
-	mockColumn2.EXPECT().GetAutoIncrement().Return(false).Once()
-
-	s.Equal("integer", s.grammar.TypeInteger(mockColumn2))
-}
-
 func (s *GrammarSuite) TestTypeString() {
 	mockColumn1 := mocksschema.NewColumnDefinition(s.T())
 	mockColumn1.EXPECT().GetLength().Return(100).Once()
@@ -605,23 +444,23 @@ func (s *GrammarSuite) TestTypeString() {
 	mockColumn2 := mocksschema.NewColumnDefinition(s.T())
 	mockColumn2.EXPECT().GetLength().Return(0).Once()
 
-	s.Equal("varchar", s.grammar.TypeString(mockColumn2))
+	s.Equal("varchar(255)", s.grammar.TypeString(mockColumn2))
 }
 
 func (s *GrammarSuite) TestTypeTimestamp() {
 	mockColumn := mocksschema.NewColumnDefinition(s.T())
-	mockColumn.EXPECT().GetUseCurrent().Return(true).Once()
-	mockColumn.EXPECT().Default(schema.Expression("CURRENT_TIMESTAMP")).Return(mockColumn).Once()
 	mockColumn.EXPECT().GetPrecision().Return(3).Once()
-	s.Equal("timestamp(3) without time zone", s.grammar.TypeTimestamp(mockColumn))
-}
+	mockColumn.EXPECT().GetUseCurrent().Return(true).Once()
+	mockColumn.EXPECT().Default(schema.Expression("CURRENT_TIMESTAMP(3)")).Return(mockColumn).Once()
+	mockColumn.EXPECT().GetUseCurrentOnUpdate().Return(true).Once()
+	mockColumn.EXPECT().OnUpdate(schema.Expression("CURRENT_TIMESTAMP(3)")).Return(mockColumn).Once()
+	s.Equal("timestamp(3)", s.grammar.TypeTimestamp(mockColumn))
 
-func (s *GrammarSuite) TestTypeTimestampTz() {
-	mockColumn := mocksschema.NewColumnDefinition(s.T())
-	mockColumn.EXPECT().GetUseCurrent().Return(true).Once()
-	mockColumn.EXPECT().Default(schema.Expression("CURRENT_TIMESTAMP")).Return(mockColumn).Once()
-	mockColumn.EXPECT().GetPrecision().Return(3).Once()
-	s.Equal("timestamp(3) with time zone", s.grammar.TypeTimestampTz(mockColumn))
+	mockColumn = mocksschema.NewColumnDefinition(s.T())
+	mockColumn.EXPECT().GetPrecision().Return(0).Once()
+	mockColumn.EXPECT().GetUseCurrent().Return(false).Once()
+	mockColumn.EXPECT().GetUseCurrentOnUpdate().Return(false).Once()
+	s.Equal("timestamp", s.grammar.TypeTimestamp(mockColumn))
 }
 
 func TestGetCommandByName(t *testing.T) {

@@ -162,10 +162,10 @@ func (s *GormTestSuite) TestDNS() {
 			name: "with dsn",
 			config: contracts.FullConfig{
 				Config: contracts.Config{
-					Dsn: "mysql://user:pass@localhost:3306/dbname",
+					Dsn: "user:pass@tcp(localhost:3306)/dbname",
 				},
 			},
-			expected: "mysql://user:pass@localhost:3306/dbname",
+			expected: "user:pass@tcp(localhost:3306)/dbname",
 		},
 		{
 			name: "without dsn",
@@ -180,7 +180,7 @@ func (s *GormTestSuite) TestDNS() {
 				Loc:     "UTC",
 				Charset: "utf8mb4",
 			},
-			expected: "mysql://user:pass@localhost:3306/testdb?charset=utf8mb4&parseTime=true&loc=UTC&multiStatements=true",
+			expected: "user:pass@tcp(localhost:3306)/testdb?charset=utf8mb4&parseTime=true&loc=UTC&multiStatements=true",
 		},
 		{
 			name: "invalid config",
