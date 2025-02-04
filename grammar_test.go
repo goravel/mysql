@@ -21,7 +21,7 @@ func TestGrammarSuite(t *testing.T) {
 }
 
 func (s *GrammarSuite) SetupTest() {
-	s.grammar = NewGrammar("goravel_")
+	s.grammar = NewGrammar("goravel", "goravel_")
 }
 
 func (s *GrammarSuite) TestCompileAdd() {

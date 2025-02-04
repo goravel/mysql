@@ -10,8 +10,9 @@ import (
 	"github.com/goravel/framework/contracts/log"
 	"github.com/goravel/framework/contracts/testing"
 	"github.com/goravel/framework/errors"
-	"github.com/goravel/mysql/contracts"
 	"gorm.io/gorm"
+
+	"github.com/goravel/mysql/contracts"
 )
 
 var _ driver.Driver = &Mysql{}
@@ -73,7 +74,7 @@ func (r *Mysql) Gorm() (*gorm.DB, driver.GormQuery, error) {
 }
 
 func (r *Mysql) Grammar() contractsschema.Grammar {
-	return NewGrammar(r.config.Writes()[0].Prefix)
+	return NewGrammar(r.config.Writes()[0].Database, r.config.Writes()[0].Prefix)
 }
 
 func (r *Mysql) Processor() contractsschema.Processor {
