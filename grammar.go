@@ -15,15 +15,17 @@ var _ contractsschema.Grammar = &Grammar{}
 
 type Grammar struct {
 	attributeCommands []string
+	database          string
 	modifiers         []func(contractsschema.Blueprint, contractsschema.ColumnDefinition) string
 	prefix            string
 	serials           []string
 	wrap              *Wrap
 }
 
-func NewGrammar(prefix string) *Grammar {
+func NewGrammar(database, prefix string) *Grammar {
 	grammar := &Grammar{
 		attributeCommands: []string{schema.CommandComment},
+		database:          database,
 		prefix:            prefix,
 		serials:           []string{"bigInteger", "integer", "mediumInteger", "smallInteger", "tinyInteger"},
 		wrap:              NewWrap(prefix),
@@ -51,7 +53,7 @@ func (r *Grammar) CompileChange(blueprint contractsschema.Blueprint, command *co
 	}
 }
 
-func (r *Grammar) CompileColumns(schema, table string) (string, error) {
+func (r *Grammar) CompileColumns(_, table string) (string, error) {
 	table = r.prefix + table
 
 	return fmt.Sprintf(
@@ -60,7 +62,7 @@ func (r *Grammar) CompileColumns(schema, table string) (string, error) {
 			"column_default as `default`, column_comment as `comment`, "+
 			"generation_expression as `expression`, extra as `extra` "+
 			"from information_schema.columns where table_schema = %s and table_name = %s "+
-			"order by ordinal_position asc", r.wrap.Quote(schema), r.wrap.Quote(table)), nil
+			"order by ordinal_position asc", r.wrap.Quote(r.database), r.wrap.Quote(table)), nil
 }
 
 func (r *Grammar) CompileComment(_ contractsschema.Blueprint, _ *contractsschema.Command) string {
@@ -180,7 +182,7 @@ func (r *Grammar) CompileForeign(blueprint contractsschema.Blueprint, command *c
 	return sql
 }
 
-func (r *Grammar) CompileForeignKeys(schema, table string) string {
+func (r *Grammar) CompileForeignKeys(_, table string) string {
 	return fmt.Sprintf(
 		`SELECT 
 			kc.constraint_name AS name, 
@@ -203,7 +205,7 @@ func (r *Grammar) CompileForeignKeys(schema, table string) string {
 			kc.referenced_table_name, 
 			rc.update_rule, 
 			rc.delete_rule`,
-		r.wrap.Quote(schema),
+		r.wrap.Quote(r.database),
 		r.wrap.Quote(table),
 	)
 }
@@ -227,7 +229,7 @@ func (r *Grammar) CompileIndex(blueprint contractsschema.Blueprint, command *con
 	)
 }
 
-func (r *Grammar) CompileIndexes(schema, table string) (string, error) {
+func (r *Grammar) CompileIndexes(_, table string) (string, error) {
 	table = r.prefix + table
 
 	return fmt.Sprintf(
@@ -235,7 +237,7 @@ func (r *Grammar) CompileIndexes(schema, table string) (string, error) {
 			"index_type as `type`, not non_unique as `unique` "+
 			"from information_schema.statistics where table_schema = %s and table_name = %s "+
 			"group by index_name, index_type, non_unique",
-		r.wrap.Quote(schema),
+		r.wrap.Quote(r.database),
 		r.wrap.Quote(table),
 	), nil
 }
