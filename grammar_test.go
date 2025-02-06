@@ -276,6 +276,22 @@ func (s *GrammarSuite) TestCompileKey() {
 	}, "unique"))
 }
 
+func (s *GrammarSuite) TestCompileRenameColumn() {
+	mockBlueprint := mocksschema.NewBlueprint(s.T())
+	mockColumn := mocksschema.NewColumnDefinition(s.T())
+
+	mockBlueprint.EXPECT().GetTableName().Return("users").Once()
+
+	sql, err := s.grammar.CompileRenameColumn(mockBlueprint, &contractsschema.Command{
+		Column: mockColumn,
+		From:   "before",
+		To:     "after",
+	})
+
+	s.NoError(err)
+	s.Equal("alter table `goravel_users` rename column `before` to `after`", sql)
+}
+
 func (s *GrammarSuite) TestGetColumns() {
 	mockColumn1 := mocksschema.NewColumnDefinition(s.T())
 	mockColumn2 := mocksschema.NewColumnDefinition(s.T())

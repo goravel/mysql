@@ -2,13 +2,16 @@ package mysql
 
 import (
 	"fmt"
+
 	"slices"
 	"strings"
 
-	"github.com/spf13/cast"
-
+	"github.com/Masterminds/semver/v3"
 	contractsschema "github.com/goravel/framework/contracts/database/schema"
 	"github.com/goravel/framework/database/schema"
+	"github.com/goravel/framework/errors"
+	"github.com/goravel/framework/support/collect"
+	"github.com/spf13/cast"
 )
 
 var _ contractsschema.Grammar = &Grammar{}
@@ -255,6 +258,24 @@ func (r *Grammar) CompileRename(blueprint contractsschema.Blueprint, command *co
 	return fmt.Sprintf("rename table %s to %s", r.wrap.Table(blueprint.GetTableName()), r.wrap.Table(command.To))
 }
 
+func (r *Grammar) CompileRenameColumn(schema contractsschema.Schema, blueprint contractsschema.Blueprint, command *contractsschema.Command) (string, error) {
+	version := schema.Orm().Version()
+	if v, err := semver.NewVersion(version); err == nil {
+		isMariaDB := schema.Orm().Query().Driver() != Name
+		_, _ = v, isMariaDB
+		if (isMariaDB && v.LessThan(semver.New(10, 5, 2, "", ""))) || (!isMariaDB && v.LessThan(semver.New(8, 0, 3, "", ""))) {
+			return r.compileLegacyRenameColumn(schema, blueprint, command)
+		}
+
+	}
+
+	return fmt.Sprintf("alter table %s rename column %s to %s",
+		r.wrap.Table(blueprint.GetTableName()),
+		r.wrap.Column(command.From),
+		r.wrap.Column(command.To),
+	), nil
+}
+
 func (r *Grammar) CompileRenameIndex(_ contractsschema.Schema, blueprint contractsschema.Blueprint, command *contractsschema.Command) []string {
 	return []string{
 		fmt.Sprintf("alter table %s rename index %s to %s", r.wrap.Table(blueprint.GetTableName()), r.wrap.Column(command.From), r.wrap.Column(command.To)),
@@ -495,6 +516,14 @@ func (r *Grammar) TypeTinyText(_ contractsschema.ColumnDefinition) string {
 	return "tinytext"
 }
 
+func (r *Grammar) addModifiers(sql string, blueprint contractsschema.Blueprint, column contractsschema.ColumnDefinition) string {
+	for _, modifier := range r.modifiers {
+		sql += modifier(blueprint, column)
+	}
+
+	return sql
+}
+
 func (r *Grammar) compileKey(blueprint contractsschema.Blueprint, command *contractsschema.Command, ttype string) string {
 	var algorithm string
 	if command.Algorithm != "" {
@@ -509,6 +538,32 @@ func (r *Grammar) compileKey(blueprint contractsschema.Blueprint, command *contr
 		r.wrap.Columnize(command.Columns))
 }
 
+func (r *Grammar) compileLegacyRenameColumn(schema contractsschema.Schema, blueprint contractsschema.Blueprint, command *contractsschema.Command) (string, error) {
+	columns, err := schema.GetColumns(blueprint.GetTableName())
+	if err != nil {
+		return "", err
+	}
+
+	columns = collect.Filter(columns, func(c contractsschema.Column, _ int) bool {
+		return c.Name == command.From
+	})
+	if len(columns) == 0 {
+		return "", errors.New(fmt.Sprintf("Column %s does not exist", command.From))
+	}
+
+	sql := columns[0].Type
+	if len(columns[0].Collation) > 0 {
+		sql += " collate " + columns[0].Collation
+	}
+
+	return fmt.Sprintf("alter table %s change %s %s %s",
+		r.wrap.Table(blueprint.GetTableName()),
+		r.wrap.Column(command.From),
+		r.wrap.Column(command.To),
+		r.addModifiers(sql, blueprint, r.rebuildColumnDefinition(columns[0])),
+	), nil
+}
+
 func (r *Grammar) getColumns(blueprint contractsschema.Blueprint) []string {
 	var columns []string
 	for _, column := range blueprint.GetAddedColumns() {
@@ -521,11 +576,29 @@ func (r *Grammar) getColumns(blueprint contractsschema.Blueprint) []string {
 func (r *Grammar) getColumn(blueprint contractsschema.Blueprint, column contractsschema.ColumnDefinition) string {
 	sql := fmt.Sprintf("%s %s", r.wrap.Column(column.GetName()), schema.ColumnType(r, column))
 
-	for _, modifier := range r.modifiers {
-		sql += modifier(blueprint, column)
+	return r.addModifiers(sql, blueprint, column)
+}
+
+func (r *Grammar) rebuildColumnDefinition(column contractsschema.Column) contractsschema.ColumnDefinition {
+	definition := schema.NewColumnDefinition(column.Name, column.Type)
+	if column.Autoincrement {
+		definition.AutoIncrement()
+	}
+	if len(column.Comment) > 0 {
+		definition.Comment(column.Comment)
+	}
+	if len(column.Default) > 0 {
+		definition.Default(schema.Expression(column.Default))
+	}
+	if column.Nullable {
+		definition.Nullable()
+	}
+	if len(column.Extra) > 0 && strings.HasPrefix(strings.ToLower(column.Extra), "on update") {
+		onUpdate := strings.TrimPrefix(strings.TrimPrefix(column.Extra, "on update"), "ON UPDATE")
+		definition.OnUpdate(schema.Expression(onUpdate))
 	}
 
-	return sql
+	return definition.Change()
 }
 
 func getCommandByName(commands []*contractsschema.Command, name string) *contractsschema.Command {
