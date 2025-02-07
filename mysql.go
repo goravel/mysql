@@ -10,6 +10,7 @@ import (
 	"github.com/goravel/framework/contracts/log"
 	"github.com/goravel/framework/contracts/testing"
 	"github.com/goravel/framework/errors"
+	"github.com/goravel/framework/support/str"
 	"gorm.io/gorm"
 
 	"github.com/goravel/mysql/contracts"
@@ -36,16 +37,18 @@ func (r *Mysql) Config() database.Config {
 		return database.Config{}
 	}
 
+	version, name := r.versionAndName()
+
 	return database.Config{
 		Connection: writers[0].Connection,
 		Database:   writers[0].Database,
-		Driver:     Name,
+		Driver:     name,
 		Host:       writers[0].Host,
 		Password:   writers[0].Password,
 		Port:       writers[0].Port,
 		Prefix:     writers[0].Prefix,
 		Username:   writers[0].Username,
-		Version:    r.version(),
+		Version:    version,
 	}
 }
 
@@ -79,6 +82,14 @@ func (r *Mysql) Grammar() contractsschema.Grammar {
 
 func (r *Mysql) Processor() contractsschema.Processor {
 	return NewProcessor()
+}
+
+func (r *Mysql) versionAndName() (string, string) {
+	version := str.Of(r.version())
+	if version.Contains("MariaDB") {
+		return version.Between("5.5.5-", "-MariaDB").String(), "MariaDB"
+	}
+	return version.String(), Name
 }
 
 func (r *Mysql) version() string {
