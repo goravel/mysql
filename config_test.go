@@ -132,7 +132,7 @@ func (s *ConfigTestSuite) TestWrites() {
 		s.Equal([]contracts.FullConfig{
 			{
 				Connection:   s.connection,
-				Driver:       "mysql",
+				Driver:       Name,
 				Prefix:       "goravel_",
 				Singular:     false,
 				Charset:      "utf8mb4",
@@ -196,7 +196,7 @@ func (s *ConfigTestSuite) TestFillDefault() {
 			expectConfigs: []contracts.FullConfig{
 				{
 					Connection:   s.connection,
-					Driver:       "mysql",
+					Driver:       Name,
 					Prefix:       prefix,
 					Singular:     singular,
 					Charset:      charset,
@@ -237,7 +237,7 @@ func (s *ConfigTestSuite) TestFillDefault() {
 			expectConfigs: []contracts.FullConfig{
 				{
 					Connection:   s.connection,
-					Driver:       "mysql",
+					Driver:       Name,
 					Prefix:       prefix,
 					Singular:     singular,
 					Charset:      charset,

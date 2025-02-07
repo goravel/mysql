@@ -7,7 +7,7 @@ import (
 
 const (
 	Binding = "goravel.mysql"
-	Name    = "mysql"
+	Name    = "MySQL"
 )
 
 var App foundation.Application
