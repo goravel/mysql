@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/goravel/framework/contracts/testing"
+	contractsdocker "github.com/goravel/framework/contracts/testing/docker"
 	"github.com/goravel/framework/support/color"
 	"github.com/goravel/framework/support/docker"
 	"github.com/goravel/framework/support/process"
@@ -18,7 +18,7 @@ type Docker struct {
 	containerID string
 	database    string
 	host        string
-	image       *testing.Image
+	image       *contractsdocker.Image
 	password    string
 	username    string
 	port        int
@@ -40,7 +40,7 @@ func NewDocker(config contracts.ConfigBuilder, database, username, password stri
 		host:     "127.0.0.1",
 		username: username,
 		password: password,
-		image: &testing.Image{
+		image: &contractsdocker.Image{
 			Repository:   "mysql",
 			Tag:          "latest",
 			Env:          env,
@@ -65,9 +65,10 @@ func (r *Docker) Build() error {
 	return nil
 }
 
-func (r *Docker) Config() testing.DatabaseConfig {
-	return testing.DatabaseConfig{
+func (r *Docker) Config() contractsdocker.DatabaseConfig {
+	return contractsdocker.DatabaseConfig{
 		ContainerID: r.containerID,
+		Driver:      Name,
 		Host:        r.host,
 		Port:        r.port,
 		Database:    r.database,
@@ -76,7 +77,7 @@ func (r *Docker) Config() testing.DatabaseConfig {
 	}
 }
 
-func (r *Docker) Database(name string) (testing.DatabaseDriver, error) {
+func (r *Docker) Database(name string) (contractsdocker.DatabaseDriver, error) {
 	go func() {
 		instance, err := r.connect("root")
 		if err != nil {
@@ -146,7 +147,7 @@ func (r *Docker) Fresh() error {
 	return r.close(instance)
 }
 
-func (r *Docker) Image(image testing.Image) {
+func (r *Docker) Image(image contractsdocker.Image) {
 	r.image = &image
 }
 

@@ -7,11 +7,12 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/spf13/cast"
+
 	contractsschema "github.com/goravel/framework/contracts/database/schema"
 	"github.com/goravel/framework/database/schema"
 	"github.com/goravel/framework/errors"
 	"github.com/goravel/framework/support/collect"
-	"github.com/spf13/cast"
 )
 
 var _ contractsschema.Grammar = &Grammar{}
