@@ -8,6 +8,7 @@ import (
 
 	contractsschema "github.com/goravel/framework/contracts/database/schema"
 	"github.com/goravel/framework/database/schema"
+	mocksorm "github.com/goravel/framework/mocks/database/orm"
 	mocksschema "github.com/goravel/framework/mocks/database/schema"
 )
 
@@ -277,12 +278,30 @@ func (s *GrammarSuite) TestCompileKey() {
 }
 
 func (s *GrammarSuite) TestCompileRenameColumn() {
-	mockBlueprint := mocksschema.NewBlueprint(s.T())
-	mockColumn := mocksschema.NewColumnDefinition(s.T())
+	var (
+		mockBlueprint *mocksschema.Blueprint
+		mockSchema    *mocksschema.Schema
+		mockColumn    *mocksschema.ColumnDefinition
+		mockOrm       *mocksorm.Orm
+		mockQuery     *mocksorm.Query
+		setup         = func(version string) {
+			mockBlueprint = mocksschema.NewBlueprint(s.T())
+			mockSchema = mocksschema.NewSchema(s.T())
+			mockColumn = mocksschema.NewColumnDefinition(s.T())
+			mockOrm = mocksorm.NewOrm(s.T())
+			mockQuery = mocksorm.NewQuery(s.T())
 
-	mockBlueprint.EXPECT().GetTableName().Return("users").Once()
+			mockOrm.EXPECT().Version().Return(version).Once()
+			mockOrm.EXPECT().Query().Return(mockQuery).Once()
+			mockQuery.EXPECT().Driver().Return(Name).Once()
+			mockSchema.EXPECT().Orm().Return(mockOrm).Twice()
+			mockBlueprint.EXPECT().GetTableName().Return("users").Once()
+		}
+	)
 
-	sql, err := s.grammar.CompileRenameColumn(mockBlueprint, &contractsschema.Command{
+	// Test case: MySQL version is greater than or equal to 8.0.3
+	setup("8.0.3")
+	sql, err := s.grammar.CompileRenameColumn(mockSchema, mockBlueprint, &contractsschema.Command{
 		Column: mockColumn,
 		From:   "before",
 		To:     "after",
@@ -290,6 +309,30 @@ func (s *GrammarSuite) TestCompileRenameColumn() {
 
 	s.NoError(err)
 	s.Equal("alter table `goravel_users` rename column `before` to `after`", sql)
+
+	// Test case: MySQL version is less than 8.0.3
+	setup("5.7.2")
+	mockSchema.EXPECT().GetColumns("users").Return([]contractsschema.Column{
+		{
+			Collation: "utf8mb4_unicode_ci",
+			Comment:   "test comment",
+			Default:   "'goravel'",
+			Name:      "before",
+			Nullable:  true,
+			Type:      "varchar",
+		},
+	}, nil).Once()
+	mockBlueprint.EXPECT().GetTableName().Return("users").Once()
+
+	sql, err = s.grammar.CompileRenameColumn(mockSchema, mockBlueprint, &contractsschema.Command{
+		Column: mockColumn,
+		From:   "before",
+		To:     "after",
+	})
+
+	s.NoError(err)
+	s.Equal("alter table `goravel_users` change `before` `after` varchar collate utf8mb4_unicode_ci null default 'goravel' comment 'test comment'", sql)
+
 }
 
 func (s *GrammarSuite) TestGetColumns() {
