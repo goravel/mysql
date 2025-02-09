@@ -263,11 +263,9 @@ func (r *Grammar) CompileRenameColumn(schema contractsschema.Schema, blueprint c
 	version := schema.Orm().Version()
 	if v, err := semver.NewVersion(version); err == nil {
 		isMariaDB := schema.Orm().Query().Driver() != Name
-		_, _ = v, isMariaDB
 		if (isMariaDB && v.LessThan(semver.New(10, 5, 2, "", ""))) || (!isMariaDB && v.LessThan(semver.New(8, 0, 3, "", ""))) {
 			return r.compileLegacyRenameColumn(schema, blueprint, command)
 		}
-
 	}
 
 	return fmt.Sprintf("alter table %s rename column %s to %s",
