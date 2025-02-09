@@ -34,7 +34,7 @@ func (s *ProcessorTestSuite) TestProcessColumns() {
 				{Name: "name", Type: "varchar", TypeName: "VARCHAR", Nullable: "YES", Extra: "", Collation: "utf8_general_ci", Comment: "user name", Default: ""},
 			},
 			expected: []schema.Column{
-				{Autoincrement: true, Collation: "utf8_general_ci", Comment: "primary key", Default: "0", Name: "id", Nullable: false, Type: "int", TypeName: "INT"},
+				{Autoincrement: true, Collation: "utf8_general_ci", Comment: "primary key", Default: "0", Extra: "auto_increment", Name: "id", Nullable: false, Type: "int", TypeName: "INT"},
 				{Autoincrement: false, Collation: "utf8_general_ci", Comment: "user name", Default: "", Name: "name", Nullable: true, Type: "varchar", TypeName: "VARCHAR"},
 			},
 		},
