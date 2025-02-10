@@ -38,12 +38,14 @@ func (s *GrammarSuite) TestCompileAdd() {
 	mockColumn.EXPECT().GetOnUpdate().Return(nil).Once()
 	mockColumn.EXPECT().GetComment().Return("comment").Once()
 	mockColumn.EXPECT().GetUnsigned().Return(false).Once()
+	mockColumn.EXPECT().GetAfter().Return("id").Twice()
+	mockColumn.EXPECT().IsFirst().Return(false).Once()
 
 	sql := s.grammar.CompileAdd(mockBlueprint, &contractsschema.Command{
 		Column: mockColumn,
 	})
 
-	s.Equal("alter table `goravel_users` add `name` varchar(1) not null default 'goravel' comment 'comment'", sql)
+	s.Equal("alter table `goravel_users` add `name` varchar(1) not null default 'goravel' comment 'comment' after `id`", sql)
 }
 
 func (s *GrammarSuite) TestCompileChange() {
@@ -59,12 +61,14 @@ func (s *GrammarSuite) TestCompileChange() {
 	mockColumn.EXPECT().GetOnUpdate().Return(nil).Once()
 	mockColumn.EXPECT().GetComment().Return("comment").Once()
 	mockColumn.EXPECT().GetUnsigned().Return(false).Once()
+	mockColumn.EXPECT().GetAfter().Return("").Once()
+	mockColumn.EXPECT().IsFirst().Return(true).Once()
 
 	sql := s.grammar.CompileChange(mockBlueprint, &contractsschema.Command{
 		Column: mockColumn,
 	})
 
-	s.Equal([]string{"alter table `goravel_users` modify `name` varchar(1) not null default 'goravel' comment 'comment'"}, sql)
+	s.Equal([]string{"alter table `goravel_users` modify `name` varchar(1) not null default 'goravel' comment 'comment' first"}, sql)
 }
 
 func (s *GrammarSuite) TestCompileCreate() {
@@ -102,6 +106,8 @@ func (s *GrammarSuite) TestCompileCreate() {
 	mockColumn1.EXPECT().GetOnUpdate().Return(nil).Once()
 	mockColumn1.EXPECT().GetComment().Return("id").Once()
 	mockColumn1.EXPECT().GetUnsigned().Return(true).Once()
+	mockColumn1.EXPECT().GetAfter().Return("").Once()
+	mockColumn1.EXPECT().IsFirst().Return(false).Once()
 
 	// utils.go::getColumns
 	mockColumn2.EXPECT().GetName().Return("name").Once()
@@ -118,6 +124,8 @@ func (s *GrammarSuite) TestCompileCreate() {
 	mockColumn2.EXPECT().GetOnUpdate().Return(nil).Once()
 	mockColumn2.EXPECT().GetComment().Return("name").Once()
 	mockColumn2.EXPECT().GetUnsigned().Return(false).Once()
+	mockColumn2.EXPECT().GetAfter().Return("").Once()
+	mockColumn2.EXPECT().IsFirst().Return(false).Once()
 
 	s.Equal("create table `goravel_users` (`id` int unsigned not null auto_increment primary key comment 'id', `name` varchar(100) null comment 'name', primary key using btree(`role_id`, `user_id`))",
 		s.grammar.CompileCreate(mockBlueprint))
@@ -353,6 +361,8 @@ func (s *GrammarSuite) TestGetColumns() {
 	mockColumn1.EXPECT().GetAutoIncrement().Return(true).Once()
 	mockColumn1.EXPECT().GetComment().Return("id").Once()
 	mockColumn1.EXPECT().GetUnsigned().Return(true).Once()
+	mockColumn1.EXPECT().GetAfter().Return("").Once()
+	mockColumn1.EXPECT().IsFirst().Return(false).Once()
 
 	mockColumn2.EXPECT().GetName().Return("name").Once()
 	mockColumn2.EXPECT().GetType().Return("string").Twice()
@@ -362,6 +372,8 @@ func (s *GrammarSuite) TestGetColumns() {
 	mockColumn2.EXPECT().GetLength().Return(10).Once()
 	mockColumn2.EXPECT().GetComment().Return("name").Once()
 	mockColumn2.EXPECT().GetUnsigned().Return(false).Once()
+	mockColumn2.EXPECT().GetAfter().Return("").Once()
+	mockColumn2.EXPECT().IsFirst().Return(false).Once()
 
 	s.Equal([]string{"`id` int unsigned not null auto_increment primary key comment 'id'", "`name` varchar(10) null default 'goravel' comment 'name'"}, s.grammar.getColumns(mockBlueprint))
 }
