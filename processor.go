@@ -32,6 +32,7 @@ func (r Processor) ProcessColumns(dbColumns []schema.DBColumn) []schema.Column {
 			Collation:     dbColumn.Collation,
 			Comment:       dbColumn.Comment,
 			Default:       dbColumn.Default,
+			Extra:         dbColumn.Extra,
 			Name:          dbColumn.Name,
 			Nullable:      nullable,
 			Type:          dbColumn.Type,
