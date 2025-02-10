@@ -288,6 +288,13 @@ func (r *Grammar) CompileTables(database string) string {
 		"order by table_name", r.wrap.Quote(database))
 }
 
+func (r *Grammar) CompileTableComment(blueprint contractsschema.Blueprint, command *contractsschema.Command) string {
+	return fmt.Sprintf("alter table %s comment = '%s'",
+		r.wrap.Table(blueprint.GetTableName()),
+		strings.ReplaceAll(command.Value, "'", "''"),
+	)
+}
+
 func (r *Grammar) CompileTypes() string {
 	return ""
 }

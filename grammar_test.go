@@ -446,6 +446,15 @@ func (s *GrammarSuite) TestModifyOnUpdate() {
 	s.Empty(s.grammar.ModifyOnUpdate(mockBlueprint, mockColumn))
 }
 
+func (s *GrammarSuite) TestTableComment() {
+	mockBlueprint := mocksschema.NewBlueprint(s.T())
+	mockBlueprint.EXPECT().GetTableName().Return("users").Once()
+
+	s.Equal("alter table `goravel_users` comment = 'It''s a table comment'", s.grammar.CompileTableComment(mockBlueprint, &contractsschema.Command{
+		Value: "It's a table comment",
+	}))
+}
+
 func (s *GrammarSuite) TestTypeBoolean() {
 	mockColumn := mocksschema.NewColumnDefinition(s.T())
 
