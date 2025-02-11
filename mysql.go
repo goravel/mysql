@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"database/sql"
 	"fmt"
 
 	"github.com/goravel/framework/contracts/config"
@@ -11,7 +12,6 @@ import (
 	"github.com/goravel/framework/contracts/testing/docker"
 	"github.com/goravel/framework/errors"
 	"github.com/goravel/framework/support/str"
-	"github.com/jmoiron/sqlx"
 	"gorm.io/gorm"
 
 	"github.com/goravel/mysql/contracts"
@@ -53,18 +53,13 @@ func (r *Mysql) Config() database.Config {
 	}
 }
 
-func (r *Mysql) DB() (*sqlx.DB, error) {
+func (r *Mysql) DB() (*sql.DB, error) {
 	gormDB, _, err := r.Gorm()
 	if err != nil {
 		return nil, err
 	}
 
-	db, err := gormDB.DB()
-	if err != nil {
-		return nil, err
-	}
-
-	return sqlx.NewDb(db, Name), nil
+	return gormDB.DB()
 }
 
 func (r *Mysql) Docker() (docker.DatabaseDriver, error) {
