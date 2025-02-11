@@ -42,6 +42,8 @@ func NewGrammar(database, prefix string) *Grammar {
 		grammar.ModifyOnUpdate,
 		grammar.ModifyIncrement,
 		grammar.ModifyComment,
+		grammar.ModifyAfter,
+		grammar.ModifyFirst,
 	}
 
 	return grammar
@@ -313,6 +315,14 @@ func (r *Grammar) GetAttributeCommands() []string {
 	return r.attributeCommands
 }
 
+func (r *Grammar) ModifyAfter(_ contractsschema.Blueprint, column contractsschema.ColumnDefinition) string {
+	if column.GetAfter() != "" {
+		return fmt.Sprintf(" after %s", r.wrap.Column(column.GetAfter()))
+	}
+
+	return ""
+}
+
 func (r *Grammar) ModifyComment(_ contractsschema.Blueprint, column contractsschema.ColumnDefinition) string {
 	if comment := column.GetComment(); comment != "" {
 		// Escape special characters to prevent SQL injection
@@ -339,6 +349,14 @@ func (r *Grammar) ModifyNullable(_ contractsschema.Blueprint, column contractssc
 	} else {
 		return " not null"
 	}
+}
+
+func (r *Grammar) ModifyFirst(_ contractsschema.Blueprint, column contractsschema.ColumnDefinition) string {
+	if column.IsFirst() {
+		return " first"
+	}
+
+	return ""
 }
 
 func (r *Grammar) ModifyIncrement(blueprint contractsschema.Blueprint, column contractsschema.ColumnDefinition) string {
