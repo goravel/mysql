@@ -66,6 +66,8 @@ github.com/goravel/framework v1.15.2-0.20250209050736-c63da33a6ac2 h1:BSmCZmyQtJ
 github.com/goravel/framework v1.15.2-0.20250209050736-c63da33a6ac2/go.mod h1:msPmnGdCt7226/Mw48qh/0iExOT/r6rlpzUhIzfTAfA=
 github.com/goravel/framework v1.15.2-0.20250210073917-7edffd9b4390 h1:B73mifdcXKESRC+JVx6xFavNCs1CN0S9VmlYYRDxsII=
 github.com/goravel/framework v1.15.2-0.20250210073917-7edffd9b4390/go.mod h1:msPmnGdCt7226/Mw48qh/0iExOT/r6rlpzUhIzfTAfA=
+github.com/goravel/framework v1.15.2-0.20250211013006-ded0b3ec94c0 h1:Uffdmk1KUrokp3sC4o3J/K1WHkJsjTtH7ilr5cJN+F4=
+github.com/goravel/framework v1.15.2-0.20250211013006-ded0b3ec94c0/go.mod h1:WfVgDDygagdHWr1BsoDC7hQ4Q2WtNukneyCW1nDH6Lg=
 github.com/jinzhu/inflection v1.0.0 h1:K317FqzuhWc8YvSVlFMCCUb36O/S9MCKRDI7QkRKD/E=
 github.com/jinzhu/inflection v1.0.0/go.mod h1:h+uFLlag+Qp1Va5pdKtLDYj+kHp5pxUVkryuEj+Srlc=
 github.com/jinzhu/now v1.1.5 h1:/o9tlHleP7gOFmsnYNz3RGnqzefHA47wQpKrrdTIwXQ=
@@ -142,6 +144,8 @@ golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACk
 golang.org/x/crypto v0.0.0-20210921155107-089bfa567519/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=
 golang.org/x/exp v0.0.0-20250207012021-f9890c6ad9f3 h1:qNgPs5exUA+G0C96DrPwNrvLSj7GT/9D+3WMWUcUg34=
 golang.org/x/exp v0.0.0-20250207012021-f9890c6ad9f3/go.mod h1:tujkw807nyEEAamNbDrEGzRav+ilXA7PCRAd6xsmwiU=
+golang.org/x/exp v0.0.0-20250210185358-939b2ce775ac h1:l5+whBCLH3iH2ZNHYLbAe58bo7yrN4mVcnkHDYz5vvs=
+golang.org/x/exp v0.0.0-20250210185358-939b2ce775ac/go.mod h1:hH+7mtFmImwwcMvScyxUhjuVHR3HGaDPMn9rMSUUbxo=
 golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4/go.mod h1:jJ57K6gSWd91VN4djpZkiMVwK6gcyfeH4XE8wZrZaV4=
 golang.org/x/mod v0.8.0/go.mod h1:iBbtSCu2XBx23ZKBPSOrRkjjQPZFPuis4dIYUhu/chs=
 golang.org/x/net v0.0.0-20190620200207-3b0461eec859/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
