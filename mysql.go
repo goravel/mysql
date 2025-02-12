@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"database/sql"
 	"fmt"
 
 	"github.com/goravel/framework/contracts/config"
@@ -41,6 +42,7 @@ func (r *Mysql) Config() database.Config {
 
 	return database.Config{
 		Connection: writers[0].Connection,
+		Dsn:        writers[0].Dsn,
 		Database:   writers[0].Database,
 		Driver:     name,
 		Host:       writers[0].Host,
@@ -52,10 +54,19 @@ func (r *Mysql) Config() database.Config {
 	}
 }
 
+func (r *Mysql) DB() (*sql.DB, error) {
+	gormDB, _, err := r.Gorm()
+	if err != nil {
+		return nil, err
+	}
+
+	return gormDB.DB()
+}
+
 func (r *Mysql) Docker() (docker.DatabaseDriver, error) {
 	writers := r.config.Writes()
 	if len(writers) == 0 {
-		return nil, errors.OrmDatabaseConfigNotFound
+		return nil, errors.DatabaseConfigNotFound
 	}
 
 	return NewDocker(r.config, writers[0].Database, writers[0].Username, writers[0].Password), nil
