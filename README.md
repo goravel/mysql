@@ -51,7 +51,7 @@ import (
         "prefix":   "",
         "singular": false,
         "via": func() (driver.Driver, error) {
-            return mysqlfacades.Mysql("mysql"), nil
+            return mysqlfacades.Mysql("mysql")
         },
         // Optional
         "read": []contracts.Config{
