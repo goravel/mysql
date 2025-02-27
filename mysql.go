@@ -12,6 +12,7 @@ import (
 	"github.com/goravel/framework/contracts/testing/docker"
 	"github.com/goravel/framework/errors"
 	"github.com/goravel/framework/support/str"
+	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
 	"github.com/goravel/mysql/contracts"
@@ -70,6 +71,9 @@ func (r *Mysql) Docker() (docker.DatabaseDriver, error) {
 	}
 
 	return NewDocker(r.config, writers[0].Database, writers[0].Username, writers[0].Password), nil
+}
+func (r *Mysql) Explain(sql string, vars ...any) string {
+	return mysql.New(mysql.Config{}).Explain(sql, vars...)
 }
 
 func (r *Mysql) Gorm() (*gorm.DB, driver.GormQuery, error) {
