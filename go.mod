@@ -6,7 +6,7 @@ toolchain go1.24.0
 
 require (
 	github.com/Masterminds/semver/v3 v3.3.1
-	github.com/goravel/framework v1.15.2-0.20250227083336-e26aa18348c4
+	github.com/goravel/framework v1.15.4
 	github.com/spf13/cast v1.7.1
 	github.com/stretchr/testify v1.10.0
 	gorm.io/driver/mysql v1.5.7
