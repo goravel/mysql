@@ -60,7 +60,7 @@ func TestVersion(t *testing.T) {
 		config: mockConfig,
 		log:    utils.NewTestLog(),
 	}
-	version := mysql.version()
+	version := mysql.getVersion()
 	assert.Contains(t, version, ".")
 	assert.NoError(t, docker.Shutdown())
 }

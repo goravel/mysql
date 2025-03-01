@@ -21,9 +21,10 @@ import (
 var _ driver.Driver = &Mysql{}
 
 type Mysql struct {
-	config contracts.ConfigBuilder
-	db     *gorm.DB
-	log    log.Log
+	config  contracts.ConfigBuilder
+	db      *gorm.DB
+	log     log.Log
+	version string
 }
 
 func NewMysql(config config.Config, log log.Log, connection string) *Mysql {
@@ -100,14 +101,18 @@ func (r *Mysql) Processor() contractsschema.Processor {
 }
 
 func (r *Mysql) versionAndName() (string, string) {
-	version := str.Of(r.version())
+	version := str.Of(r.getVersion())
 	if version.Contains("MariaDB") {
 		return version.Between("5.5.5-", "-MariaDB").String(), "MariaDB"
 	}
 	return version.String(), Name
 }
 
-func (r *Mysql) version() string {
+func (r *Mysql) getVersion() string {
+	if r.version != "" {
+		return r.version
+	}
+
 	instance, _, err := r.Gorm()
 	if err != nil {
 		return ""
@@ -117,8 +122,10 @@ func (r *Mysql) version() string {
 		Value string
 	}
 	if err := instance.Raw("SELECT VERSION() AS value;").Scan(&version).Error; err != nil {
-		return fmt.Sprintf("UNKNOWN: %s", err)
+		r.version = fmt.Sprintf("UNKNOWN: %s", err)
+	} else {
+		r.version = version.Value
 	}
 
-	return version.Value
+	return r.version
 }
