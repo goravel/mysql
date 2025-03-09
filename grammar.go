@@ -23,17 +23,21 @@ type Grammar struct {
 	attributeCommands []string
 	database          string
 	modifiers         []func(driver.Blueprint, driver.ColumnDefinition) string
+	name              string
 	prefix            string
 	serials           []string
+	version           string
 	wrap              *Wrap
 }
 
-func NewGrammar(database, prefix string) *Grammar {
+func NewGrammar(database, prefix, version, name string) *Grammar {
 	grammar := &Grammar{
 		attributeCommands: []string{schema.CommandComment},
 		database:          database,
+		name:              name,
 		prefix:            prefix,
 		serials:           []string{"bigInteger", "integer", "mediumInteger", "smallInteger", "tinyInteger"},
+		version:           version,
 		wrap:              NewWrap(prefix),
 	}
 	grammar.modifiers = []func(driver.Blueprint, driver.ColumnDefinition) string{
@@ -287,12 +291,11 @@ func (r *Grammar) CompileRename(blueprint driver.Blueprint, command *driver.Comm
 	return fmt.Sprintf("rename table %s to %s", r.wrap.Table(blueprint.GetTableName()), r.wrap.Table(command.To))
 }
 
-func (r *Grammar) CompileRenameColumn(schema driver.Schema, blueprint driver.Blueprint, command *driver.Command) (string, error) {
-	version := schema.Orm().Version()
-	if v, err := semver.NewVersion(version); err == nil {
-		isMariaDB := schema.Orm().Query().Driver() != Name
+func (r *Grammar) CompileRenameColumn(blueprint driver.Blueprint, command *driver.Command, columns []driver.Column) (string, error) {
+	if v, err := semver.NewVersion(r.version); err == nil {
+		isMariaDB := r.name != Name
 		if (isMariaDB && v.LessThan(semver.New(10, 5, 2, "", ""))) || (!isMariaDB && v.LessThan(semver.New(8, 0, 3, "", ""))) {
-			return r.compileLegacyRenameColumn(schema, blueprint, command)
+			return r.compileLegacyRenameColumn(blueprint, command, columns)
 		}
 	}
 
@@ -303,7 +306,7 @@ func (r *Grammar) CompileRenameColumn(schema driver.Schema, blueprint driver.Blu
 	), nil
 }
 
-func (r *Grammar) CompileRenameIndex(_ driver.Schema, blueprint driver.Blueprint, command *driver.Command) []string {
+func (r *Grammar) CompileRenameIndex(blueprint driver.Blueprint, command *driver.Command, _ []driver.Index) []string {
 	return []string{
 		fmt.Sprintf("alter table %s rename index %s to %s", r.wrap.Table(blueprint.GetTableName()), r.wrap.Column(command.From), r.wrap.Column(command.To)),
 	}
@@ -600,12 +603,7 @@ func (r *Grammar) compileKey(blueprint driver.Blueprint, command *driver.Command
 		r.wrap.Columnize(command.Columns))
 }
 
-func (r *Grammar) compileLegacyRenameColumn(schema driver.Schema, blueprint driver.Blueprint, command *driver.Command) (string, error) {
-	columns, err := schema.GetColumns(blueprint.GetTableName())
-	if err != nil {
-		return "", err
-	}
-
+func (r *Grammar) compileLegacyRenameColumn(blueprint driver.Blueprint, command *driver.Command, columns []driver.Column) (string, error) {
 	columns = collect.Filter(columns, func(c driver.Column, _ int) bool {
 		return c.Name == command.From
 	})

@@ -93,7 +93,9 @@ func (r *Mysql) Gorm() (*gorm.DB, error) {
 }
 
 func (r *Mysql) Grammar() contractsdriver.Grammar {
-	return NewGrammar(r.config.Writes()[0].Database, r.config.Writes()[0].Prefix)
+	version, name := r.versionAndName()
+
+	return NewGrammar(r.config.Writes()[0].Database, r.config.Writes()[0].Prefix, version, name)
 }
 
 func (r *Mysql) Processor() contractsdriver.Processor {
