@@ -3,9 +3,8 @@ package mysql
 import (
 	"testing"
 
+	"github.com/goravel/framework/contracts/database/driver"
 	"github.com/stretchr/testify/suite"
-
-	"github.com/goravel/framework/contracts/database/schema"
 )
 
 type ProcessorTestSuite struct {
@@ -24,39 +23,39 @@ func (s *ProcessorTestSuite) SetupTest() {
 func (s *ProcessorTestSuite) TestProcessColumns() {
 	tests := []struct {
 		name      string
-		dbColumns []schema.DBColumn
-		expected  []schema.Column
+		dbColumns []driver.DBColumn
+		expected  []driver.Column
 	}{
 		{
 			name: "ValidInput",
-			dbColumns: []schema.DBColumn{
+			dbColumns: []driver.DBColumn{
 				{Name: "id", Type: "int", TypeName: "INT", Nullable: "NO", Extra: "auto_increment", Collation: "utf8_general_ci", Comment: "primary key", Default: "0"},
 				{Name: "name", Type: "varchar", TypeName: "VARCHAR", Nullable: "YES", Extra: "", Collation: "utf8_general_ci", Comment: "user name", Default: ""},
 			},
-			expected: []schema.Column{
+			expected: []driver.Column{
 				{Autoincrement: true, Collation: "utf8_general_ci", Comment: "primary key", Default: "0", Extra: "auto_increment", Name: "id", Nullable: false, Type: "int", TypeName: "INT"},
 				{Autoincrement: false, Collation: "utf8_general_ci", Comment: "user name", Default: "", Name: "name", Nullable: true, Type: "varchar", TypeName: "VARCHAR"},
 			},
 		},
 		{
 			name:      "EmptyInput",
-			dbColumns: []schema.DBColumn{},
+			dbColumns: []driver.DBColumn{},
 		},
 		{
 			name: "NullableColumn",
-			dbColumns: []schema.DBColumn{
+			dbColumns: []driver.DBColumn{
 				{Name: "description", Type: "text", TypeName: "TEXT", Nullable: "YES", Extra: "", Collation: "utf8_general_ci", Comment: "description", Default: ""},
 			},
-			expected: []schema.Column{
+			expected: []driver.Column{
 				{Autoincrement: false, Collation: "utf8_general_ci", Comment: "description", Default: "", Name: "description", Nullable: true, Type: "text", TypeName: "TEXT"},
 			},
 		},
 		{
 			name: "NonNullableColumn",
-			dbColumns: []schema.DBColumn{
+			dbColumns: []driver.DBColumn{
 				{Name: "created_at", Type: "timestamp", TypeName: "TIMESTAMP", Nullable: "NO", Extra: "", Collation: "", Comment: "creation time", Default: "CURRENT_TIMESTAMP"},
 			},
-			expected: []schema.Column{
+			expected: []driver.Column{
 				{Autoincrement: false, Collation: "", Comment: "creation time", Default: "CURRENT_TIMESTAMP", Name: "created_at", Nullable: false, Type: "timestamp", TypeName: "TIMESTAMP"},
 			},
 		},
@@ -73,21 +72,21 @@ func (s *ProcessorTestSuite) TestProcessColumns() {
 func (s *ProcessorTestSuite) TestProcessForeignKeys() {
 	tests := []struct {
 		name          string
-		dbForeignKeys []schema.DBForeignKey
-		expected      []schema.ForeignKey
+		dbForeignKeys []driver.DBForeignKey
+		expected      []driver.ForeignKey
 	}{
 		{
 			name: "ValidInput",
-			dbForeignKeys: []schema.DBForeignKey{
+			dbForeignKeys: []driver.DBForeignKey{
 				{Name: "fk_user_id", Columns: "user_id", ForeignSchema: "public", ForeignTable: "users", ForeignColumns: "id", OnUpdate: "CASCADE", OnDelete: "SET NULL"},
 			},
-			expected: []schema.ForeignKey{
+			expected: []driver.ForeignKey{
 				{Name: "fk_user_id", Columns: []string{"user_id"}, ForeignSchema: "public", ForeignTable: "users", ForeignColumns: []string{"id"}, OnUpdate: "cascade", OnDelete: "set null"},
 			},
 		},
 		{
 			name:          "EmptyInput",
-			dbForeignKeys: []schema.DBForeignKey{},
+			dbForeignKeys: []driver.DBForeignKey{},
 		},
 	}
 
@@ -102,17 +101,17 @@ func (s *ProcessorTestSuite) TestProcessForeignKeys() {
 func (s *ProcessorTestSuite) TestProcessIndexes() {
 	tests := []struct {
 		name      string
-		dbIndexes []schema.DBIndex
-		expected  []schema.Index
+		dbIndexes []driver.DBIndex
+		expected  []driver.Index
 	}{
 		{
 			name: "ValidInput",
-			dbIndexes: []schema.DBIndex{
+			dbIndexes: []driver.DBIndex{
 				{Name: "users_email_unique", Columns: "email", Type: "BTREE", Primary: false, Unique: true},
 				{Name: "PRIMARY", Columns: "id", Type: "BTREE", Primary: true, Unique: true},
 				{Name: "users_name_index", Columns: "first_name,last_name", Type: "BTREE", Primary: false, Unique: false},
 			},
-			expected: []schema.Index{
+			expected: []driver.Index{
 				{Name: "users_email_unique", Columns: []string{"email"}, Type: "btree", Primary: false, Unique: true},
 				{Name: "primary", Columns: []string{"id"}, Type: "btree", Primary: true, Unique: true},
 				{Name: "users_name_index", Columns: []string{"first_name", "last_name"}, Type: "btree", Primary: false, Unique: false},
@@ -120,7 +119,7 @@ func (s *ProcessorTestSuite) TestProcessIndexes() {
 		},
 		{
 			name:      "EmptyInput",
-			dbIndexes: []schema.DBIndex{},
+			dbIndexes: []driver.DBIndex{},
 		},
 	}
 
