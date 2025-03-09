@@ -7,20 +7,22 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
+	sq "github.com/Masterminds/squirrel"
 	"github.com/spf13/cast"
+	"gorm.io/gorm/clause"
 
-	contractsschema "github.com/goravel/framework/contracts/database/schema"
+	"github.com/goravel/framework/contracts/database/driver"
 	"github.com/goravel/framework/database/schema"
 	"github.com/goravel/framework/errors"
 	"github.com/goravel/framework/support/collect"
 )
 
-var _ contractsschema.Grammar = &Grammar{}
+var _ driver.Grammar = &Grammar{}
 
 type Grammar struct {
 	attributeCommands []string
 	database          string
-	modifiers         []func(contractsschema.Blueprint, contractsschema.ColumnDefinition) string
+	modifiers         []func(driver.Blueprint, driver.ColumnDefinition) string
 	prefix            string
 	serials           []string
 	wrap              *Wrap
@@ -34,7 +36,7 @@ func NewGrammar(database, prefix string) *Grammar {
 		serials:           []string{"bigInteger", "integer", "mediumInteger", "smallInteger", "tinyInteger"},
 		wrap:              NewWrap(prefix),
 	}
-	grammar.modifiers = []func(contractsschema.Blueprint, contractsschema.ColumnDefinition) string{
+	grammar.modifiers = []func(driver.Blueprint, driver.ColumnDefinition) string{
 		// The sort should not be changed, it effects the SQL output
 		grammar.ModifyUnsigned,
 		grammar.ModifyNullable,
@@ -49,11 +51,11 @@ func NewGrammar(database, prefix string) *Grammar {
 	return grammar
 }
 
-func (r *Grammar) CompileAdd(blueprint contractsschema.Blueprint, command *contractsschema.Command) string {
+func (r *Grammar) CompileAdd(blueprint driver.Blueprint, command *driver.Command) string {
 	return fmt.Sprintf("alter table %s add %s", r.wrap.Table(blueprint.GetTableName()), r.getColumn(blueprint, command.Column))
 }
 
-func (r *Grammar) CompileChange(blueprint contractsschema.Blueprint, command *contractsschema.Command) []string {
+func (r *Grammar) CompileChange(blueprint driver.Blueprint, command *driver.Command) []string {
 	return []string{
 		fmt.Sprintf("alter table %s modify %s", r.wrap.Table(blueprint.GetTableName()), r.getColumn(blueprint, command.Column)),
 	}
@@ -71,11 +73,11 @@ func (r *Grammar) CompileColumns(_, table string) (string, error) {
 			"order by ordinal_position asc", r.wrap.Quote(r.database), r.wrap.Quote(table)), nil
 }
 
-func (r *Grammar) CompileComment(_ contractsschema.Blueprint, _ *contractsschema.Command) string {
+func (r *Grammar) CompileComment(_ driver.Blueprint, _ *driver.Command) string {
 	return ""
 }
 
-func (r *Grammar) CompileCreate(blueprint contractsschema.Blueprint) string {
+func (r *Grammar) CompileCreate(blueprint driver.Blueprint) string {
 	columns := r.getColumns(blueprint)
 	primaryCommand := getCommandByName(blueprint.GetCommands(), "primary")
 	if primaryCommand != nil {
@@ -91,7 +93,7 @@ func (r *Grammar) CompileCreate(blueprint contractsschema.Blueprint) string {
 	return fmt.Sprintf("create table %s (%s)", r.wrap.Table(blueprint.GetTableName()), strings.Join(columns, ", "))
 }
 
-func (r *Grammar) CompileDefault(_ contractsschema.Blueprint, _ *contractsschema.Command) string {
+func (r *Grammar) CompileDefault(_ driver.Blueprint, _ *driver.Command) string {
 	return ""
 }
 
@@ -99,7 +101,7 @@ func (r *Grammar) CompileDisableForeignKeyConstraints() string {
 	return "SET FOREIGN_KEY_CHECKS=0;"
 }
 
-func (r *Grammar) CompileDrop(blueprint contractsschema.Blueprint) string {
+func (r *Grammar) CompileDrop(blueprint driver.Blueprint) string {
 	return fmt.Sprintf("drop table %s", r.wrap.Table(blueprint.GetTableName()))
 }
 
@@ -107,7 +109,7 @@ func (r *Grammar) CompileDropAllDomains(_ []string) string {
 	return ""
 }
 
-func (r *Grammar) CompileDropAllTables(_ string, tables []contractsschema.Table) []string {
+func (r *Grammar) CompileDropAllTables(_ string, tables []driver.Table) []string {
 	var dropTables []string
 	for _, table := range tables {
 		dropTables = append(dropTables, table.Name)
@@ -120,11 +122,11 @@ func (r *Grammar) CompileDropAllTables(_ string, tables []contractsschema.Table)
 	}
 }
 
-func (r *Grammar) CompileDropAllTypes(_ string, _ []contractsschema.Type) []string {
+func (r *Grammar) CompileDropAllTypes(_ string, _ []driver.Type) []string {
 	return nil
 }
 
-func (r *Grammar) CompileDropAllViews(_ string, views []contractsschema.View) []string {
+func (r *Grammar) CompileDropAllViews(_ string, views []driver.View) []string {
 	var dropViews []string
 	for _, view := range views {
 		dropViews = append(dropViews, view.Name)
@@ -135,7 +137,7 @@ func (r *Grammar) CompileDropAllViews(_ string, views []contractsschema.View) []
 	}
 }
 
-func (r *Grammar) CompileDropColumn(blueprint contractsschema.Blueprint, command *contractsschema.Command) []string {
+func (r *Grammar) CompileDropColumn(blueprint driver.Blueprint, command *driver.Command) []string {
 	columns := r.wrap.PrefixArray("drop", r.wrap.Columns(command.Columns))
 
 	return []string{
@@ -143,27 +145,27 @@ func (r *Grammar) CompileDropColumn(blueprint contractsschema.Blueprint, command
 	}
 }
 
-func (r *Grammar) CompileDropForeign(blueprint contractsschema.Blueprint, command *contractsschema.Command) string {
+func (r *Grammar) CompileDropForeign(blueprint driver.Blueprint, command *driver.Command) string {
 	return fmt.Sprintf("alter table %s drop foreign key %s", r.wrap.Table(blueprint.GetTableName()), r.wrap.Column(command.Index))
 }
 
-func (r *Grammar) CompileDropFullText(blueprint contractsschema.Blueprint, command *contractsschema.Command) string {
+func (r *Grammar) CompileDropFullText(blueprint driver.Blueprint, command *driver.Command) string {
 	return r.CompileDropIndex(blueprint, command)
 }
 
-func (r *Grammar) CompileDropIfExists(blueprint contractsschema.Blueprint) string {
+func (r *Grammar) CompileDropIfExists(blueprint driver.Blueprint) string {
 	return fmt.Sprintf("drop table if exists %s", r.wrap.Table(blueprint.GetTableName()))
 }
 
-func (r *Grammar) CompileDropIndex(blueprint contractsschema.Blueprint, command *contractsschema.Command) string {
+func (r *Grammar) CompileDropIndex(blueprint driver.Blueprint, command *driver.Command) string {
 	return fmt.Sprintf("alter table %s drop index %s", r.wrap.Table(blueprint.GetTableName()), r.wrap.Column(command.Index))
 }
 
-func (r *Grammar) CompileDropPrimary(blueprint contractsschema.Blueprint, _ *contractsschema.Command) string {
+func (r *Grammar) CompileDropPrimary(blueprint driver.Blueprint, _ *driver.Command) string {
 	return fmt.Sprintf("alter table %s drop primary key", r.wrap.Table(blueprint.GetTableName()))
 }
 
-func (r *Grammar) CompileDropUnique(blueprint contractsschema.Blueprint, command *contractsschema.Command) string {
+func (r *Grammar) CompileDropUnique(blueprint driver.Blueprint, command *driver.Command) string {
 	return r.CompileDropIndex(blueprint, command)
 }
 
@@ -171,7 +173,7 @@ func (r *Grammar) CompileEnableForeignKeyConstraints() string {
 	return "SET FOREIGN_KEY_CHECKS=1;"
 }
 
-func (r *Grammar) CompileForeign(blueprint contractsschema.Blueprint, command *contractsschema.Command) string {
+func (r *Grammar) CompileForeign(blueprint driver.Blueprint, command *driver.Command) string {
 	sql := fmt.Sprintf("alter table %s add constraint %s foreign key (%s) references %s (%s)",
 		r.wrap.Table(blueprint.GetTableName()),
 		r.wrap.Column(command.Index),
@@ -216,11 +218,11 @@ func (r *Grammar) CompileForeignKeys(_, table string) string {
 	)
 }
 
-func (r *Grammar) CompileFullText(blueprint contractsschema.Blueprint, command *contractsschema.Command) string {
+func (r *Grammar) CompileFullText(blueprint driver.Blueprint, command *driver.Command) string {
 	return r.compileKey(blueprint, command, "fulltext")
 }
 
-func (r *Grammar) CompileIndex(blueprint contractsschema.Blueprint, command *contractsschema.Command) string {
+func (r *Grammar) CompileIndex(blueprint driver.Blueprint, command *driver.Command) string {
 	var algorithm string
 	if command.Algorithm != "" {
 		algorithm = " using " + command.Algorithm
@@ -248,7 +250,19 @@ func (r *Grammar) CompileIndexes(_, table string) (string, error) {
 	), nil
 }
 
-func (r *Grammar) CompilePrimary(blueprint contractsschema.Blueprint, command *contractsschema.Command) string {
+func (r *Grammar) CompileLockForUpdate(builder sq.SelectBuilder, conditions *driver.Conditions) sq.SelectBuilder {
+	if conditions.LockForUpdate != nil && *conditions.LockForUpdate {
+		builder = builder.Suffix("FOR UPDATE")
+	}
+
+	return builder
+}
+
+func (r *Grammar) CompileLockForUpdateForGorm() clause.Expression {
+	return clause.Locking{Strength: "UPDATE"}
+}
+
+func (r *Grammar) CompilePrimary(blueprint driver.Blueprint, command *driver.Command) string {
 	var algorithm string
 	if command.Algorithm != "" {
 		algorithm = "using " + command.Algorithm
@@ -257,11 +271,23 @@ func (r *Grammar) CompilePrimary(blueprint contractsschema.Blueprint, command *c
 	return fmt.Sprintf("alter table %s add primary key %s(%s)", r.wrap.Table(blueprint.GetTableName()), algorithm, r.wrap.Columnize(command.Columns))
 }
 
-func (r *Grammar) CompileRename(blueprint contractsschema.Blueprint, command *contractsschema.Command) string {
+func (r *Grammar) CompileInRandomOrder(builder sq.SelectBuilder, conditions *driver.Conditions) sq.SelectBuilder {
+	if conditions.InRandomOrder != nil && *conditions.InRandomOrder {
+		conditions.OrderBy = []string{"RAND()"}
+	}
+
+	return builder
+}
+
+func (r *Grammar) CompileRandomOrderForGorm() string {
+	return "RAND()"
+}
+
+func (r *Grammar) CompileRename(blueprint driver.Blueprint, command *driver.Command) string {
 	return fmt.Sprintf("rename table %s to %s", r.wrap.Table(blueprint.GetTableName()), r.wrap.Table(command.To))
 }
 
-func (r *Grammar) CompileRenameColumn(schema contractsschema.Schema, blueprint contractsschema.Blueprint, command *contractsschema.Command) (string, error) {
+func (r *Grammar) CompileRenameColumn(schema driver.Schema, blueprint driver.Blueprint, command *driver.Command) (string, error) {
 	version := schema.Orm().Version()
 	if v, err := semver.NewVersion(version); err == nil {
 		isMariaDB := schema.Orm().Query().Driver() != Name
@@ -277,10 +303,22 @@ func (r *Grammar) CompileRenameColumn(schema contractsschema.Schema, blueprint c
 	), nil
 }
 
-func (r *Grammar) CompileRenameIndex(_ contractsschema.Schema, blueprint contractsschema.Blueprint, command *contractsschema.Command) []string {
+func (r *Grammar) CompileRenameIndex(_ driver.Schema, blueprint driver.Blueprint, command *driver.Command) []string {
 	return []string{
 		fmt.Sprintf("alter table %s rename index %s to %s", r.wrap.Table(blueprint.GetTableName()), r.wrap.Column(command.From), r.wrap.Column(command.To)),
 	}
+}
+
+func (r *Grammar) CompileSharedLock(builder sq.SelectBuilder, conditions *driver.Conditions) sq.SelectBuilder {
+	if conditions.SharedLock != nil && *conditions.SharedLock {
+		builder = builder.Suffix("FOR SHARE")
+	}
+
+	return builder
+}
+
+func (r *Grammar) CompileSharedLockForGorm() clause.Expression {
+	return clause.Locking{Strength: "SHARE"}
 }
 
 func (r *Grammar) CompileTables(database string) string {
@@ -290,7 +328,7 @@ func (r *Grammar) CompileTables(database string) string {
 		"order by table_name", r.wrap.Quote(database))
 }
 
-func (r *Grammar) CompileTableComment(blueprint contractsschema.Blueprint, command *contractsschema.Command) string {
+func (r *Grammar) CompileTableComment(blueprint driver.Blueprint, command *driver.Command) string {
 	return fmt.Sprintf("alter table %s comment = '%s'",
 		r.wrap.Table(blueprint.GetTableName()),
 		strings.ReplaceAll(command.Value, "'", "''"),
@@ -301,7 +339,7 @@ func (r *Grammar) CompileTypes() string {
 	return ""
 }
 
-func (r *Grammar) CompileUnique(blueprint contractsschema.Blueprint, command *contractsschema.Command) string {
+func (r *Grammar) CompileUnique(blueprint driver.Blueprint, command *driver.Command) string {
 	return r.compileKey(blueprint, command, "unique")
 }
 
@@ -315,7 +353,7 @@ func (r *Grammar) GetAttributeCommands() []string {
 	return r.attributeCommands
 }
 
-func (r *Grammar) ModifyAfter(_ contractsschema.Blueprint, column contractsschema.ColumnDefinition) string {
+func (r *Grammar) ModifyAfter(_ driver.Blueprint, column driver.ColumnDefinition) string {
 	if column.GetAfter() != "" {
 		return fmt.Sprintf(" after %s", r.wrap.Column(column.GetAfter()))
 	}
@@ -323,7 +361,7 @@ func (r *Grammar) ModifyAfter(_ contractsschema.Blueprint, column contractsschem
 	return ""
 }
 
-func (r *Grammar) ModifyComment(_ contractsschema.Blueprint, column contractsschema.ColumnDefinition) string {
+func (r *Grammar) ModifyComment(_ driver.Blueprint, column driver.ColumnDefinition) string {
 	if comment := column.GetComment(); comment != "" {
 		// Escape special characters to prevent SQL injection
 		comment = strings.ReplaceAll(comment, "'", "''")
@@ -335,7 +373,7 @@ func (r *Grammar) ModifyComment(_ contractsschema.Blueprint, column contractssch
 	return ""
 }
 
-func (r *Grammar) ModifyDefault(_ contractsschema.Blueprint, column contractsschema.ColumnDefinition) string {
+func (r *Grammar) ModifyDefault(_ driver.Blueprint, column driver.ColumnDefinition) string {
 	if column.GetDefault() != nil {
 		return fmt.Sprintf(" default %s", schema.ColumnDefaultValue(column.GetDefault()))
 	}
@@ -343,7 +381,7 @@ func (r *Grammar) ModifyDefault(_ contractsschema.Blueprint, column contractssch
 	return ""
 }
 
-func (r *Grammar) ModifyNullable(_ contractsschema.Blueprint, column contractsschema.ColumnDefinition) string {
+func (r *Grammar) ModifyNullable(_ driver.Blueprint, column driver.ColumnDefinition) string {
 	if column.GetNullable() {
 		return " null"
 	} else {
@@ -351,7 +389,7 @@ func (r *Grammar) ModifyNullable(_ contractsschema.Blueprint, column contractssc
 	}
 }
 
-func (r *Grammar) ModifyFirst(_ contractsschema.Blueprint, column contractsschema.ColumnDefinition) string {
+func (r *Grammar) ModifyFirst(_ driver.Blueprint, column driver.ColumnDefinition) string {
 	if column.IsFirst() {
 		return " first"
 	}
@@ -359,7 +397,7 @@ func (r *Grammar) ModifyFirst(_ contractsschema.Blueprint, column contractsschem
 	return ""
 }
 
-func (r *Grammar) ModifyIncrement(blueprint contractsschema.Blueprint, column contractsschema.ColumnDefinition) string {
+func (r *Grammar) ModifyIncrement(blueprint driver.Blueprint, column driver.ColumnDefinition) string {
 	if slices.Contains(r.serials, column.GetType()) && column.GetAutoIncrement() {
 		if blueprint.HasCommand("primary") {
 			return "auto_increment"
@@ -370,7 +408,7 @@ func (r *Grammar) ModifyIncrement(blueprint contractsschema.Blueprint, column co
 	return ""
 }
 
-func (r *Grammar) ModifyOnUpdate(_ contractsschema.Blueprint, column contractsschema.ColumnDefinition) string {
+func (r *Grammar) ModifyOnUpdate(_ driver.Blueprint, column driver.ColumnDefinition) string {
 	onUpdate := column.GetOnUpdate()
 	if onUpdate != nil {
 		switch value := onUpdate.(type) {
@@ -386,7 +424,7 @@ func (r *Grammar) ModifyOnUpdate(_ contractsschema.Blueprint, column contractssc
 	return ""
 }
 
-func (r *Grammar) ModifyUnsigned(_ contractsschema.Blueprint, column contractsschema.ColumnDefinition) string {
+func (r *Grammar) ModifyUnsigned(_ driver.Blueprint, column driver.ColumnDefinition) string {
 	if column.GetUnsigned() {
 		return " unsigned"
 	}
@@ -394,23 +432,23 @@ func (r *Grammar) ModifyUnsigned(_ contractsschema.Blueprint, column contractssc
 	return ""
 }
 
-func (r *Grammar) TypeBigInteger(_ contractsschema.ColumnDefinition) string {
+func (r *Grammar) TypeBigInteger(_ driver.ColumnDefinition) string {
 	return "bigint"
 }
 
-func (r *Grammar) TypeBoolean(_ contractsschema.ColumnDefinition) string {
+func (r *Grammar) TypeBoolean(_ driver.ColumnDefinition) string {
 	return "tinyint(1)"
 }
 
-func (r *Grammar) TypeChar(column contractsschema.ColumnDefinition) string {
+func (r *Grammar) TypeChar(column driver.ColumnDefinition) string {
 	return fmt.Sprintf("char(%d)", column.GetLength())
 }
 
-func (r *Grammar) TypeDate(_ contractsschema.ColumnDefinition) string {
+func (r *Grammar) TypeDate(_ driver.ColumnDefinition) string {
 	return "date"
 }
 
-func (r *Grammar) TypeDateTime(column contractsschema.ColumnDefinition) string {
+func (r *Grammar) TypeDateTime(column driver.ColumnDefinition) string {
 	current := "CURRENT_TIMESTAMP"
 	precision := column.GetPrecision()
 	if precision > 0 {
@@ -430,23 +468,23 @@ func (r *Grammar) TypeDateTime(column contractsschema.ColumnDefinition) string {
 	}
 }
 
-func (r *Grammar) TypeDateTimeTz(column contractsschema.ColumnDefinition) string {
+func (r *Grammar) TypeDateTimeTz(column driver.ColumnDefinition) string {
 	return r.TypeDateTime(column)
 }
 
-func (r *Grammar) TypeDecimal(column contractsschema.ColumnDefinition) string {
+func (r *Grammar) TypeDecimal(column driver.ColumnDefinition) string {
 	return fmt.Sprintf("decimal(%d, %d)", column.GetTotal(), column.GetPlaces())
 }
 
-func (r *Grammar) TypeDouble(_ contractsschema.ColumnDefinition) string {
+func (r *Grammar) TypeDouble(_ driver.ColumnDefinition) string {
 	return "double"
 }
 
-func (r *Grammar) TypeEnum(column contractsschema.ColumnDefinition) string {
+func (r *Grammar) TypeEnum(column driver.ColumnDefinition) string {
 	return fmt.Sprintf(`enum(%s)`, strings.Join(r.wrap.Quotes(cast.ToStringSlice(column.GetAllowed())), ", "))
 }
 
-func (r *Grammar) TypeFloat(column contractsschema.ColumnDefinition) string {
+func (r *Grammar) TypeFloat(column driver.ColumnDefinition) string {
 	precision := column.GetPrecision()
 	if precision > 0 {
 		return fmt.Sprintf("float(%d)", precision)
@@ -455,35 +493,35 @@ func (r *Grammar) TypeFloat(column contractsschema.ColumnDefinition) string {
 	return "float"
 }
 
-func (r *Grammar) TypeInteger(_ contractsschema.ColumnDefinition) string {
+func (r *Grammar) TypeInteger(_ driver.ColumnDefinition) string {
 	return "int"
 }
 
-func (r *Grammar) TypeJson(_ contractsschema.ColumnDefinition) string {
+func (r *Grammar) TypeJson(_ driver.ColumnDefinition) string {
 	return "json"
 }
 
-func (r *Grammar) TypeJsonb(_ contractsschema.ColumnDefinition) string {
+func (r *Grammar) TypeJsonb(_ driver.ColumnDefinition) string {
 	return "json"
 }
 
-func (r *Grammar) TypeLongText(_ contractsschema.ColumnDefinition) string {
+func (r *Grammar) TypeLongText(_ driver.ColumnDefinition) string {
 	return "longtext"
 }
 
-func (r *Grammar) TypeMediumInteger(_ contractsschema.ColumnDefinition) string {
+func (r *Grammar) TypeMediumInteger(_ driver.ColumnDefinition) string {
 	return "mediumint"
 }
 
-func (r *Grammar) TypeMediumText(_ contractsschema.ColumnDefinition) string {
+func (r *Grammar) TypeMediumText(_ driver.ColumnDefinition) string {
 	return "mediumtext"
 }
 
-func (r *Grammar) TypeSmallInteger(_ contractsschema.ColumnDefinition) string {
+func (r *Grammar) TypeSmallInteger(_ driver.ColumnDefinition) string {
 	return "smallint"
 }
 
-func (r *Grammar) TypeString(column contractsschema.ColumnDefinition) string {
+func (r *Grammar) TypeString(column driver.ColumnDefinition) string {
 	length := column.GetLength()
 	if length > 0 {
 		return fmt.Sprintf("varchar(%d)", length)
@@ -492,11 +530,11 @@ func (r *Grammar) TypeString(column contractsschema.ColumnDefinition) string {
 	return "varchar(255)"
 }
 
-func (r *Grammar) TypeText(_ contractsschema.ColumnDefinition) string {
+func (r *Grammar) TypeText(_ driver.ColumnDefinition) string {
 	return "text"
 }
 
-func (r *Grammar) TypeTime(column contractsschema.ColumnDefinition) string {
+func (r *Grammar) TypeTime(column driver.ColumnDefinition) string {
 	if column.GetPrecision() > 0 {
 		return fmt.Sprintf("time(%d)", column.GetPrecision())
 	} else {
@@ -504,11 +542,11 @@ func (r *Grammar) TypeTime(column contractsschema.ColumnDefinition) string {
 	}
 }
 
-func (r *Grammar) TypeTimeTz(column contractsschema.ColumnDefinition) string {
+func (r *Grammar) TypeTimeTz(column driver.ColumnDefinition) string {
 	return r.TypeTime(column)
 }
 
-func (r *Grammar) TypeTimestamp(column contractsschema.ColumnDefinition) string {
+func (r *Grammar) TypeTimestamp(column driver.ColumnDefinition) string {
 	current := "CURRENT_TIMESTAMP"
 	precision := column.GetPrecision()
 	if precision > 0 {
@@ -528,19 +566,19 @@ func (r *Grammar) TypeTimestamp(column contractsschema.ColumnDefinition) string 
 	}
 }
 
-func (r *Grammar) TypeTimestampTz(column contractsschema.ColumnDefinition) string {
+func (r *Grammar) TypeTimestampTz(column driver.ColumnDefinition) string {
 	return r.TypeTimestamp(column)
 }
 
-func (r *Grammar) TypeTinyInteger(_ contractsschema.ColumnDefinition) string {
+func (r *Grammar) TypeTinyInteger(_ driver.ColumnDefinition) string {
 	return "tinyint"
 }
 
-func (r *Grammar) TypeTinyText(_ contractsschema.ColumnDefinition) string {
+func (r *Grammar) TypeTinyText(_ driver.ColumnDefinition) string {
 	return "tinytext"
 }
 
-func (r *Grammar) addModifiers(sql string, blueprint contractsschema.Blueprint, column contractsschema.ColumnDefinition) string {
+func (r *Grammar) addModifiers(sql string, blueprint driver.Blueprint, column driver.ColumnDefinition) string {
 	for _, modifier := range r.modifiers {
 		sql += modifier(blueprint, column)
 	}
@@ -548,7 +586,7 @@ func (r *Grammar) addModifiers(sql string, blueprint contractsschema.Blueprint, 
 	return sql
 }
 
-func (r *Grammar) compileKey(blueprint contractsschema.Blueprint, command *contractsschema.Command, ttype string) string {
+func (r *Grammar) compileKey(blueprint driver.Blueprint, command *driver.Command, ttype string) string {
 	var algorithm string
 	if command.Algorithm != "" {
 		algorithm = " using " + command.Algorithm
@@ -562,13 +600,13 @@ func (r *Grammar) compileKey(blueprint contractsschema.Blueprint, command *contr
 		r.wrap.Columnize(command.Columns))
 }
 
-func (r *Grammar) compileLegacyRenameColumn(schema contractsschema.Schema, blueprint contractsschema.Blueprint, command *contractsschema.Command) (string, error) {
+func (r *Grammar) compileLegacyRenameColumn(schema driver.Schema, blueprint driver.Blueprint, command *driver.Command) (string, error) {
 	columns, err := schema.GetColumns(blueprint.GetTableName())
 	if err != nil {
 		return "", err
 	}
 
-	columns = collect.Filter(columns, func(c contractsschema.Column, _ int) bool {
+	columns = collect.Filter(columns, func(c driver.Column, _ int) bool {
 		return c.Name == command.From
 	})
 	if len(columns) == 0 {
@@ -588,7 +626,7 @@ func (r *Grammar) compileLegacyRenameColumn(schema contractsschema.Schema, bluep
 	), nil
 }
 
-func (r *Grammar) getColumns(blueprint contractsschema.Blueprint) []string {
+func (r *Grammar) getColumns(blueprint driver.Blueprint) []string {
 	var columns []string
 	for _, column := range blueprint.GetAddedColumns() {
 		columns = append(columns, r.getColumn(blueprint, column))
@@ -597,13 +635,13 @@ func (r *Grammar) getColumns(blueprint contractsschema.Blueprint) []string {
 	return columns
 }
 
-func (r *Grammar) getColumn(blueprint contractsschema.Blueprint, column contractsschema.ColumnDefinition) string {
+func (r *Grammar) getColumn(blueprint driver.Blueprint, column driver.ColumnDefinition) string {
 	sql := fmt.Sprintf("%s %s", r.wrap.Column(column.GetName()), schema.ColumnType(r, column))
 
 	return r.addModifiers(sql, blueprint, column)
 }
 
-func (r *Grammar) rebuildColumnDefinition(column contractsschema.Column) contractsschema.ColumnDefinition {
+func (r *Grammar) rebuildColumnDefinition(column driver.Column) driver.ColumnDefinition {
 	definition := schema.NewColumnDefinition(column.Name, column.Type)
 	if column.Autoincrement {
 		definition.AutoIncrement()
@@ -625,7 +663,7 @@ func (r *Grammar) rebuildColumnDefinition(column contractsschema.Column) contrac
 	return definition.Change()
 }
 
-func getCommandByName(commands []*contractsschema.Command, name string) *contractsschema.Command {
+func getCommandByName(commands []*driver.Command, name string) *driver.Command {
 	commands = getCommandsByName(commands, name)
 	if len(commands) == 0 {
 		return nil
@@ -634,8 +672,8 @@ func getCommandByName(commands []*contractsschema.Command, name string) *contrac
 	return commands[0]
 }
 
-func getCommandsByName(commands []*contractsschema.Command, name string) []*contractsschema.Command {
-	var filteredCommands []*contractsschema.Command
+func getCommandsByName(commands []*driver.Command, name string) []*driver.Command {
+	var filteredCommands []*driver.Command
 	for _, command := range commands {
 		if command.Name == name {
 			filteredCommands = append(filteredCommands, command)

@@ -7,7 +7,7 @@ import (
 	"github.com/goravel/framework/contracts/config"
 	"github.com/goravel/framework/contracts/database"
 	"github.com/goravel/framework/contracts/database/driver"
-	contractsschema "github.com/goravel/framework/contracts/database/schema"
+	contractsdriver "github.com/goravel/framework/contracts/database/driver"
 	"github.com/goravel/framework/contracts/log"
 	"github.com/goravel/framework/contracts/testing/docker"
 	"github.com/goravel/framework/errors"
@@ -57,7 +57,7 @@ func (r *Mysql) Config() database.Config {
 }
 
 func (r *Mysql) DB() (*sql.DB, error) {
-	gormDB, _, err := r.Gorm()
+	gormDB, err := r.Gorm()
 	if err != nil {
 		return nil, err
 	}
@@ -77,26 +77,26 @@ func (r *Mysql) Explain(sql string, vars ...any) string {
 	return mysql.New(mysql.Config{}).Explain(sql, vars...)
 }
 
-func (r *Mysql) Gorm() (*gorm.DB, driver.GormQuery, error) {
+func (r *Mysql) Gorm() (*gorm.DB, error) {
 	if r.db != nil {
-		return r.db, NewQuery(), nil
+		return r.db, nil
 	}
 
 	db, err := NewGorm(r.config, r.log).Build()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	r.db = db
 
-	return db, NewQuery(), nil
+	return db, nil
 }
 
-func (r *Mysql) Grammar() contractsschema.Grammar {
+func (r *Mysql) Grammar() contractsdriver.Grammar {
 	return NewGrammar(r.config.Writes()[0].Database, r.config.Writes()[0].Prefix)
 }
 
-func (r *Mysql) Processor() contractsschema.Processor {
+func (r *Mysql) Processor() contractsdriver.Processor {
 	return NewProcessor()
 }
 
@@ -113,7 +113,7 @@ func (r *Mysql) getVersion() string {
 		return r.version
 	}
 
-	instance, _, err := r.Gorm()
+	instance, err := r.Gorm()
 	if err != nil {
 		return ""
 	}
