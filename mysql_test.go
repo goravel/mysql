@@ -36,14 +36,14 @@ func TestVersion(t *testing.T) {
 	mockConfigFacade := mocksconfig.NewConfig(t)
 
 	// instance
-	mockConfig.EXPECT().Writes().Return(writes).Once()
-	mockConfig.EXPECT().Reads().Return([]contracts.FullConfig{}).Once()
+	mockConfig.EXPECT().Writers().Return(writes).Once()
+	mockConfig.EXPECT().Readers().Return([]contracts.FullConfig{}).Once()
 
 	// gormConfig
 	mockConfig.EXPECT().Config().Return(mockConfigFacade).Once()
 	mockConfigFacade.EXPECT().GetBool("app.debug").Return(true).Once()
 	mockConfigFacade.EXPECT().GetInt("database.slow_threshold", 200).Return(200).Once()
-	mockConfig.EXPECT().Writes().Return(writes).Once()
+	mockConfig.EXPECT().Writers().Return(writes).Once()
 
 	// configurePool
 	mockConfigFacade.EXPECT().GetInt("database.pool.max_idle_conns", 10).Return(10).Once()
@@ -53,8 +53,8 @@ func TestVersion(t *testing.T) {
 	mockConfig.EXPECT().Config().Return(mockConfigFacade).Once()
 
 	// configureReadWriteSeparate
-	mockConfig.EXPECT().Writes().Return(writes).Once()
-	mockConfig.EXPECT().Reads().Return([]contracts.FullConfig{}).Once()
+	mockConfig.EXPECT().Writers().Return(writes).Once()
+	mockConfig.EXPECT().Readers().Return([]contracts.FullConfig{}).Once()
 
 	mysql := &Mysql{
 		config: mockConfig,
