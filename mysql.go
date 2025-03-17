@@ -8,12 +8,10 @@ import (
 	contractsdriver "github.com/goravel/framework/contracts/database/driver"
 	"github.com/goravel/framework/contracts/log"
 	"github.com/goravel/framework/contracts/testing/docker"
-	"github.com/goravel/framework/database/driver"
 	"github.com/goravel/framework/errors"
 	"github.com/goravel/framework/support/str"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"gorm.io/plugin/dbresolver"
 
 	"github.com/goravel/mysql/contracts"
 )
@@ -95,15 +93,26 @@ func (r *Mysql) getVersion() string {
 		return r.version
 	}
 
-	instance, err := driver.BuildGorm(r.config.Config(), r.log, r.Pool())
+	writers := r.Pool().Writers
+	if len(writers) == 0 {
+		return ""
+	}
+
+	instance, err := gorm.Open(writers[0].Dialector)
 	if err != nil {
 		return ""
 	}
+	db, err := instance.DB()
+	if err != nil {
+		return ""
+	}
+	defer db.Close()
 
 	var version struct {
 		Value string
 	}
-	if err := instance.Clauses(dbresolver.Write).Raw(r.Grammar().CompileVersion()).Scan(&version).Error; err != nil {
+	grammar := NewGrammar(writers[0].Database, writers[0].Prefix, "", "")
+	if err := instance.Raw(grammar.CompileVersion()).Scan(&version).Error; err != nil {
 		r.version = fmt.Sprintf("UNKNOWN: %s", err)
 	} else {
 		r.version = version.Value
