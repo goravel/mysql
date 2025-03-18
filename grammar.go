@@ -266,6 +266,10 @@ func (r *Grammar) CompileLockForUpdateForGorm() clause.Expression {
 	return clause.Locking{Strength: "UPDATE"}
 }
 
+func (r *Grammar) CompilePlaceholderFormat() driver.PlaceholderFormat {
+	return nil
+}
+
 func (r *Grammar) CompilePrimary(blueprint driver.Blueprint, command *driver.Command) string {
 	var algorithm string
 	if command.Algorithm != "" {
@@ -344,6 +348,10 @@ func (r *Grammar) CompileTypes() string {
 
 func (r *Grammar) CompileUnique(blueprint driver.Blueprint, command *driver.Command) string {
 	return r.compileKey(blueprint, command, "unique")
+}
+
+func (r *Grammar) CompileVersion() string {
+	return "SELECT VERSION() AS value;"
 }
 
 func (r *Grammar) CompileViews(database string) string {
