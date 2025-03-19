@@ -54,6 +54,7 @@ import (
             return mysqlfacades.Mysql("mysql")
         },
         // Optional
+        "dsn": "",
         "read": []contracts.Config{
             {Host: "192.168.1.1", Port: 3306, Database: "forge", Username: "root", Password: "123123"},
         },
