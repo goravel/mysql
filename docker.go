@@ -2,12 +2,15 @@ package mysql
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	contractsdocker "github.com/goravel/framework/contracts/testing/docker"
 	"github.com/goravel/framework/support/color"
+	supportdocker "github.com/goravel/framework/support/docker"
 	"github.com/goravel/framework/support/process"
 	testingdocker "github.com/goravel/framework/testing/docker"
+	"github.com/spf13/cast"
 	"gorm.io/driver/mysql"
 	gormio "gorm.io/gorm"
 
@@ -54,8 +57,9 @@ func (r *Docker) Build() error {
 		return err
 	}
 
-	r.databaseConfig.ContainerID = r.imageDriver.Config().ContainerID
-	r.databaseConfig.Port = r.imageDriver.Config().ExposedPorts[r.databaseConfig.Port]
+	config := r.imageDriver.Config()
+	r.databaseConfig.ContainerID = config.ContainerID
+	r.databaseConfig.Port = cast.ToInt(supportdocker.ExposedPort(config.ExposedPorts, strconv.Itoa(r.databaseConfig.Port)))
 
 	return nil
 }
