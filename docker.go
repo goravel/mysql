@@ -6,22 +6,18 @@ import (
 
 	contractsdocker "github.com/goravel/framework/contracts/testing/docker"
 	"github.com/goravel/framework/support/color"
-	"github.com/goravel/framework/support/docker"
 	"github.com/goravel/framework/support/process"
-	"github.com/goravel/mysql/contracts"
+	testingdocker "github.com/goravel/framework/testing/docker"
 	"gorm.io/driver/mysql"
 	gormio "gorm.io/gorm"
+
+	"github.com/goravel/mysql/contracts"
 )
 
 type Docker struct {
-	config      contracts.ConfigBuilder
-	containerID string
-	database    string
-	host        string
-	image       *contractsdocker.Image
-	password    string
-	username    string
-	port        int
+	config         contracts.ConfigBuilder
+	databaseConfig contractsdocker.DatabaseConfig
+	imageDriver    contractsdocker.ImageDriver
 }
 
 func NewDocker(config contracts.ConfigBuilder, database, username, password string) *Docker {
@@ -35,46 +31,37 @@ func NewDocker(config contracts.ConfigBuilder, database, username, password stri
 	}
 
 	return &Docker{
-		config:   config,
-		database: database,
-		host:     "127.0.0.1",
-		username: username,
-		password: password,
-		image: &contractsdocker.Image{
+		config: config,
+		databaseConfig: contractsdocker.DatabaseConfig{
+			Driver:   Name,
+			Host:     "127.0.0.1",
+			Port:     3306,
+			Database: database,
+			Username: username,
+			Password: password,
+		},
+		imageDriver: testingdocker.NewImageDriver(contractsdocker.Image{
 			Repository:   "mysql",
 			Tag:          "latest",
 			Env:          env,
 			ExposedPorts: []string{"3306"},
-		},
+		}),
 	}
 }
 
 func (r *Docker) Build() error {
-	command, exposedPorts := docker.ImageToCommand(r.image)
-	containerID, err := process.Run(command)
-	if err != nil {
-		return fmt.Errorf("init MySQL error: %v", err)
-	}
-	if containerID == "" {
-		return fmt.Errorf("no container id return when creating MySQL docker")
+	if err := r.imageDriver.Build(); err != nil {
+		return err
 	}
 
-	r.containerID = containerID
-	r.port = docker.ExposedPort(exposedPorts, 3306)
+	r.databaseConfig.ContainerID = r.imageDriver.Config().ContainerID
+	r.databaseConfig.Port = r.imageDriver.Config().ExposedPorts[r.databaseConfig.Port]
 
 	return nil
 }
 
 func (r *Docker) Config() contractsdocker.DatabaseConfig {
-	return contractsdocker.DatabaseConfig{
-		ContainerID: r.containerID,
-		Driver:      Name,
-		Host:        r.host,
-		Port:        r.port,
-		Database:    r.database,
-		Username:    r.username,
-		Password:    r.password,
-	}
+	return r.databaseConfig
 }
 
 func (r *Docker) Database(name string) (contractsdocker.DatabaseDriver, error) {
@@ -91,7 +78,7 @@ func (r *Docker) Database(name string) (contractsdocker.DatabaseDriver, error) {
 			return
 		}
 
-		res = instance.Exec(fmt.Sprintf("GRANT ALL PRIVILEGES ON %s.* TO `%s`@`%%`;", name, r.username))
+		res = instance.Exec(fmt.Sprintf("GRANT ALL PRIVILEGES ON %s.* TO `%s`@`%%`;", name, r.databaseConfig.Username))
 		if res.Error != nil {
 			color.Errorf("grant privileges in Mysql database error: %v", res.Error)
 		}
@@ -101,9 +88,9 @@ func (r *Docker) Database(name string) (contractsdocker.DatabaseDriver, error) {
 		}
 	}()
 
-	docker := NewDocker(r.config, name, r.username, r.password)
-	docker.containerID = r.containerID
-	docker.port = r.port
+	docker := NewDocker(r.config, name, r.databaseConfig.Username, r.databaseConfig.Password)
+	docker.databaseConfig.ContainerID = r.databaseConfig.ContainerID
+	docker.databaseConfig.Port = r.databaseConfig.Port
 
 	return docker, nil
 }
@@ -118,7 +105,7 @@ func (r *Docker) Fresh() error {
 		return fmt.Errorf("connect Mysql error when clearing: %v", err)
 	}
 
-	res := instance.Raw("select concat('drop table ',table_name,';') from information_schema.TABLES where table_schema=?;", r.database)
+	res := instance.Raw("select concat('drop table ',table_name,';') from information_schema.TABLES where table_schema=?;", r.databaseConfig.Database)
 	if res.Error != nil {
 		return fmt.Errorf("get tables of Mysql error: %v", res.Error)
 	}
@@ -148,7 +135,7 @@ func (r *Docker) Fresh() error {
 }
 
 func (r *Docker) Image(image contractsdocker.Image) {
-	r.image = &image
+	r.imageDriver = testingdocker.NewImageDriver(image)
 }
 
 func (r *Docker) Ready() error {
@@ -163,14 +150,14 @@ func (r *Docker) Ready() error {
 }
 
 func (r *Docker) Reuse(containerID string, port int) error {
-	r.containerID = containerID
-	r.port = port
+	r.databaseConfig.ContainerID = containerID
+	r.databaseConfig.Port = port
 
 	return nil
 }
 
 func (r *Docker) Shutdown() error {
-	if _, err := process.Run(fmt.Sprintf("docker stop %s", r.containerID)); err != nil {
+	if _, err := process.Run(fmt.Sprintf("docker stop %s", r.databaseConfig.ContainerID)); err != nil {
 		return fmt.Errorf("stop Mysql error: %v", err)
 	}
 
@@ -183,7 +170,7 @@ func (r *Docker) connect(username ...string) (*gormio.DB, error) {
 		err      error
 	)
 
-	useUsername := r.username
+	useUsername := r.databaseConfig.Username
 	if len(username) > 0 {
 		useUsername = username[0]
 	}
@@ -191,7 +178,7 @@ func (r *Docker) connect(username ...string) (*gormio.DB, error) {
 	// docker compose need time to start
 	for i := 0; i < 60; i++ {
 		instance, err = gormio.Open(mysql.New(mysql.Config{
-			DSN: fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", useUsername, r.password, r.host, r.port, r.database),
+			DSN: fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", useUsername, r.databaseConfig.Password, r.databaseConfig.Host, r.databaseConfig.Port, r.databaseConfig.Database),
 		}))
 
 		if err == nil {
@@ -216,11 +203,11 @@ func (r *Docker) close(gormDB *gormio.DB) error {
 func (r *Docker) resetConfigPort() {
 	writers := r.config.Config().Get(fmt.Sprintf("database.connections.%s.write", r.config.Connection()))
 	if writeConfigs, ok := writers.([]contracts.Config); ok {
-		writeConfigs[0].Port = r.port
+		writeConfigs[0].Port = r.databaseConfig.Port
 		r.config.Config().Add(fmt.Sprintf("database.connections.%s.write", r.config.Connection()), writeConfigs)
 
 		return
 	}
 
-	r.config.Config().Add(fmt.Sprintf("database.connections.%s.port", r.config.Connection()), r.port)
+	r.config.Config().Add(fmt.Sprintf("database.connections.%s.port", r.config.Connection()), r.databaseConfig.Port)
 }
