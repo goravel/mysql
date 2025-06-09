@@ -27,7 +27,7 @@ func TestVersion(t *testing.T) {
 	docker := NewDocker(nil, writes[0].Database, writes[0].Username, writes[0].Password)
 	assert.NoError(t, docker.Build())
 
-	writes[0].Config.Port = docker.port
+	writes[0].Config.Port = docker.databaseConfig.Port
 	_, err := docker.connect()
 	assert.NoError(t, err)
 
