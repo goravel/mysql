@@ -8,9 +8,9 @@ import (
 	"github.com/goravel/framework/database/schema"
 	mocksdriver "github.com/goravel/framework/mocks/database/driver"
 	mocksfoundation "github.com/goravel/framework/mocks/foundation"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"github.com/zeebo/assert"
 )
 
 type GrammarSuite struct {
