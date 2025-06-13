@@ -2,19 +2,17 @@ package mysql
 
 import (
 	"fmt"
-
 	"slices"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
 	sq "github.com/Masterminds/squirrel"
-	"github.com/spf13/cast"
-	"gorm.io/gorm/clause"
-
 	"github.com/goravel/framework/contracts/database/driver"
 	"github.com/goravel/framework/database/schema"
 	"github.com/goravel/framework/errors"
 	"github.com/goravel/framework/support/collect"
+	"github.com/spf13/cast"
+	"gorm.io/gorm/clause"
 )
 
 var _ driver.Grammar = &Grammar{}
@@ -27,7 +25,7 @@ type Grammar struct {
 	prefix            string
 	serials           []string
 	version           string
-	wrap              *Wrap
+	wrap              *schema.Wrap
 }
 
 func NewGrammar(database, prefix, version, name string) *Grammar {
@@ -38,8 +36,11 @@ func NewGrammar(database, prefix, version, name string) *Grammar {
 		prefix:            prefix,
 		serials:           []string{"bigInteger", "integer", "mediumInteger", "smallInteger", "tinyInteger"},
 		version:           version,
-		wrap:              NewWrap(prefix),
+		wrap:              schema.NewWrap(prefix),
 	}
+	grammar.wrap.SetValueWrapper(func(s string) string {
+		return "`" + strings.ReplaceAll(s, "`", "``") + "`"
+	})
 	grammar.modifiers = []func(driver.Blueprint, driver.ColumnDefinition) string{
 		// The sort should not be changed, it effects the SQL output
 		grammar.ModifyUnsigned,
@@ -252,6 +253,34 @@ func (r *Grammar) CompileIndexes(_, table string) (string, error) {
 		r.wrap.Quote(r.database),
 		r.wrap.Quote(table),
 	), nil
+}
+
+func (r *Grammar) CompileJsonContains(column string, value any, isNot bool) (string, []any, error) {
+	field, path := r.wrap.JsonFieldAndPath(column)
+	binding, err := App.GetJson().Marshal(value)
+	if err != nil {
+		return column, nil, err
+	}
+
+	return r.wrap.Not(fmt.Sprintf("json_contains(%s, ?%s)", field, path), isNot), []any{string(binding)}, nil
+}
+
+func (r *Grammar) CompileJsonContainsKey(column string, isNot bool) string {
+	field, path := r.wrap.JsonFieldAndPath(column)
+
+	return r.wrap.Not(fmt.Sprintf("ifnull(json_contains_path(%s, 'one'%s), 0)", field, path), isNot)
+}
+
+func (r *Grammar) CompileJsonLength(column string) string {
+	field, path := r.wrap.JsonFieldAndPath(column)
+
+	return fmt.Sprintf("json_length(%s%s)", field, path)
+}
+
+func (r *Grammar) CompileJsonSelector(column string) string {
+	field, path := r.wrap.JsonFieldAndPath(column)
+
+	return fmt.Sprintf("json_unquote(json_extract(%s%s))", field, path)
 }
 
 func (r *Grammar) CompileLockForUpdate(builder sq.SelectBuilder, conditions *driver.Conditions) sq.SelectBuilder {
