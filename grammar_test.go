@@ -8,6 +8,7 @@ import (
 	"github.com/goravel/framework/database/schema"
 	mocksdriver "github.com/goravel/framework/mocks/database/driver"
 	mocksfoundation "github.com/goravel/framework/mocks/foundation"
+	"github.com/goravel/framework/support/convert"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -403,6 +404,46 @@ func (s *GrammarSuite) TestCompileJsonLength() {
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
 			s.Equal(tt.expectedSql, s.grammar.CompileJsonLength(tt.column))
+		})
+	}
+}
+
+func (s *GrammarSuite) TestCompileJsonValues() {
+	tests := []struct {
+		name     string
+		args     []any
+		expected []any
+	}{
+		{
+			name:     "number values",
+			args:     []any{1},
+			expected: []any{1},
+		},
+		{
+			name:     "number values",
+			args:     []any{[]int{1, 2, 3}},
+			expected: []any{[]any{1, 2, 3}},
+		},
+		{
+			name:     "string values",
+			args:     []any{"value1", "value2", "value3"},
+			expected: []any{"value1", "value2", "value3"},
+		},
+		{
+			name:     "boolean values",
+			args:     []any{true, false},
+			expected: []any{"true", "false"},
+		},
+		{
+			name:     "pointer values",
+			args:     []any{convert.Pointer(true)},
+			expected: []any{"true"},
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Equal(tt.expected, s.grammar.CompileJsonValues(tt.args...))
 		})
 	}
 }
