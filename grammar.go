@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"fmt"
+	"reflect"
 	"slices"
 	"strings"
 
@@ -281,6 +282,35 @@ func (r *Grammar) CompileJsonSelector(column string) string {
 	field, path := r.wrap.JsonFieldAndPath(column)
 
 	return fmt.Sprintf("json_unquote(json_extract(%s%s))", field, path)
+}
+
+func (r *Grammar) CompileJsonValues(args ...any) []any {
+	for i, arg := range args {
+		val := reflect.ValueOf(arg)
+		if val.Kind() == reflect.Ptr {
+			if val.IsNil() {
+				continue
+			}
+			val = val.Elem()
+		}
+		switch val.Kind() {
+		case reflect.Bool:
+			args[i] = fmt.Sprint(val.Interface())
+
+		case reflect.Slice, reflect.Array:
+			if length := val.Len(); length > 0 {
+				values := make([]any, length)
+				for j := 0; j < length; j++ {
+					values[j] = val.Index(j).Interface()
+				}
+				args[i] = r.CompileJsonValues(values...)
+			}
+		default:
+
+		}
+
+	}
+	return args
 }
 
 func (r *Grammar) CompileLockForUpdate(builder sq.SelectBuilder, conditions *driver.Conditions) sq.SelectBuilder {
