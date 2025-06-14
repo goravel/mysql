@@ -255,6 +255,48 @@ func (s *ConfigTestSuite) TestFillDefault() {
 				},
 			},
 		},
+		{
+			name: "success with app.timezone",
+			configs: []contracts.Config{
+				{
+					Dsn:      dsn,
+					Host:     host,
+					Port:     port,
+					Database: database,
+					Username: username,
+					Password: password,
+				},
+			},
+			setup: func() {
+				s.mockConfig.EXPECT().GetString(fmt.Sprintf("database.connections.%s.prefix", s.connection)).Return(prefix).Once()
+				s.mockConfig.EXPECT().GetBool(fmt.Sprintf("database.connections.%s.singular", s.connection)).Return(singular).Once()
+				s.mockConfig.EXPECT().GetBool(fmt.Sprintf("database.connections.%s.no_lower_case", s.connection)).Return(true).Once()
+				s.mockConfig.EXPECT().Get(fmt.Sprintf("database.connections.%s.name_replacer", s.connection)).Return(nameReplacer).Once()
+				s.mockConfig.EXPECT().GetString(fmt.Sprintf("database.connections.%s.charset", s.connection)).Return(charset).Once()
+				s.mockConfig.EXPECT().GetString(fmt.Sprintf("database.connections.%s.loc", s.connection)).Return("").Once()
+				s.mockConfig.EXPECT().GetString("app.timezone", "UTC").Return(loc).Once()
+			},
+			expectConfigs: []contracts.FullConfig{
+				{
+					Connection:   s.connection,
+					Driver:       Name,
+					Prefix:       prefix,
+					Singular:     singular,
+					Charset:      charset,
+					Loc:          loc,
+					NoLowerCase:  true,
+					NameReplacer: nameReplacer,
+					Config: contracts.Config{
+						Dsn:      dsn,
+						Database: database,
+						Host:     host,
+						Port:     port,
+						Username: username,
+						Password: password,
+					},
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {
