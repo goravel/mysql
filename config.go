@@ -91,7 +91,11 @@ func (r *Config) fillDefault(configs []contracts.Config) []contracts.FullConfig 
 			fullConfig.Charset = r.config.GetString(fmt.Sprintf("database.connections.%s.charset", r.connection))
 		}
 		if fullConfig.Loc == "" {
-			fullConfig.Loc = r.config.GetString(fmt.Sprintf("database.connections.%s.loc", r.connection))
+			loc := r.config.GetString(fmt.Sprintf("database.connections.%s.loc", r.connection))
+			if loc == "" {
+				loc = r.config.GetString("app.timezone", "UTC")
+			}
+			fullConfig.Loc = loc
 		}
 		fullConfigs = append(fullConfigs, fullConfig)
 	}

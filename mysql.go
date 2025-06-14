@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"fmt"
+	"net/url"
 
 	"github.com/goravel/framework/contracts/config"
 	"github.com/goravel/framework/contracts/database"
@@ -130,7 +131,7 @@ func dsn(fullConfig contracts.FullConfig) string {
 	}
 
 	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=%t&loc=%s&multiStatements=true",
-		fullConfig.Username, fullConfig.Password, fullConfig.Host, fullConfig.Port, fullConfig.Database, fullConfig.Charset, true, fullConfig.Loc)
+		fullConfig.Username, fullConfig.Password, fullConfig.Host, fullConfig.Port, fullConfig.Database, fullConfig.Charset, true, url.QueryEscape(fullConfig.Loc))
 }
 
 func fullConfigToDialector(fullConfig contracts.FullConfig) gorm.Dialector {
