@@ -9,6 +9,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/goravel/framework/contracts/database/driver"
+	databasedb "github.com/goravel/framework/database/db"
 	"github.com/goravel/framework/database/schema"
 	"github.com/goravel/framework/errors"
 	"github.com/goravel/framework/support/collect"
@@ -254,6 +255,50 @@ func (r *Grammar) CompileIndexes(_, table string) (string, error) {
 		r.wrap.Quote(r.database),
 		r.wrap.Quote(table),
 	), nil
+}
+
+func (r *Grammar) CompileJsonColumnsUpdate(values map[string]any) (map[string]any, error) {
+	var (
+		compiled = make(map[string]any)
+		json     = App.GetJson()
+	)
+	for key, value := range values {
+		if strings.Contains(key, "->") {
+			segments := strings.SplitN(key, "->", 2)
+			column, path := segments[0], strings.Trim(r.wrap.JsonPath(segments[1]), "'")
+
+			val := reflect.ValueOf(value)
+			if val.Kind() == reflect.Ptr {
+				val = val.Elem()
+			}
+
+			if kind := val.Kind(); kind == reflect.Slice || kind == reflect.Array || kind == reflect.Map || kind == reflect.Struct || kind == reflect.Bool {
+				binding, err := json.Marshal(value)
+				if err != nil {
+					return nil, err
+				}
+				value = databasedb.Raw("cast(? as json)", string(binding))
+
+				// MariaDB does not support casting to JSON directly
+				if r.name != Name {
+					value = databasedb.Raw("json_extract(?, '$')", string(binding))
+				}
+			}
+
+			expr, ok := compiled[column]
+			if !ok {
+				expr = databasedb.Raw(r.wrap.Column(column))
+			}
+
+			compiled[column] = databasedb.Raw("json_set(?,?,?)", expr, path, value)
+
+			continue
+		}
+
+		compiled[key] = value
+	}
+
+	return compiled, nil
 }
 
 func (r *Grammar) CompileJsonContains(column string, value any, isNot bool) (string, []any, error) {
