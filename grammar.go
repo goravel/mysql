@@ -383,6 +383,8 @@ func (r *Grammar) CompilePrimary(blueprint driver.Blueprint, command *driver.Com
 	return fmt.Sprintf("alter table %s add primary key %s(%s)", r.wrap.Table(blueprint.GetTableName()), algorithm, r.wrap.Columnize(command.Columns))
 }
 
+func (r *Grammar) CompilePrune(_ string) string { return "" }
+
 func (r *Grammar) CompileInRandomOrder(builder sq.SelectBuilder, conditions *driver.Conditions) sq.SelectBuilder {
 	if conditions.InRandomOrder != nil && *conditions.InRandomOrder {
 		conditions.OrderBy = []string{"RAND()"}
