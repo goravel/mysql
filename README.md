@@ -10,57 +10,18 @@ The Mysql driver for facades.Orm() of Goravel.
 
 ## Install
 
-1. Add package
+Run the command below in your project to install the package automatically:
 
-```
-go get -u github.com/goravel/mysql
-```
+```bash
+./artisan package:install github.com/goravel/mysql
+``` 
 
-2. Register service provider
+Or check [the setup file](./setup/setup.go) to install the package manually.
 
-```
-// config/app.go
-import "github.com/goravel/mysql"
+## Testing
 
-"providers": []foundation.ServiceProvider{
-    ...
-    &mysql.ServiceProvider{},
-}
-```
+Run command below to run test:
 
-3. Add Mysql driver to `config/database.go` file
-
-```
-// config/database.go
-import (
-    "github.com/goravel/framework/contracts/database/driver"
-    "github.com/goravel/mysql/contracts"
-    mysqlfacades "github.com/goravel/mysql/facades"
-)
-
-"connections": map[string]any{
-    ...
-    "mysql": map[string]any{
-        "host":     config.Env("DB_HOST", "127.0.0.1"),
-        "port":     config.Env("DB_PORT", 3306),
-        "database": config.Env("DB_DATABASE", "forge"),
-        "username": config.Env("DB_USERNAME", ""),
-        "password": config.Env("DB_PASSWORD", ""),
-        "charset":  "utf8mb4",
-        "prefix":   "",
-        "singular": false,
-        "via": func() (driver.Driver, error) {
-            return mysqlfacades.Mysql("mysql")
-        },
-        // Optional
-        "dsn": "",
-        "read": []contracts.Config{
-            {Host: "192.168.1.1", Port: 3306, Database: "forge", Username: "root", Password: "123123"},
-        },
-        // Optional
-        "write": []contracts.Config{
-            {Host: "192.168.1.2", Port: 3306, Database: "forge", Username: "root", Password: "123123"},
-        },
-    },
-}
+```bash
+go test ./...
 ```
