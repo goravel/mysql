@@ -695,6 +695,10 @@ func (r *Grammar) TypeTinyText(_ driver.ColumnDefinition) string {
 	return "tinytext"
 }
 
+func (r *Grammar) TypeUuid(_ driver.ColumnDefinition) string {
+	return "char(36)"
+}
+
 func (r *Grammar) addModifiers(sql string, blueprint driver.Blueprint, column driver.ColumnDefinition) string {
 	for _, modifier := range r.modifiers {
 		sql += modifier(blueprint, column)
