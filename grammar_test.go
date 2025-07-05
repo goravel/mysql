@@ -791,6 +791,18 @@ func (s *GrammarSuite) TestTypeTimestamp() {
 	s.Equal("timestamp", s.grammar.TypeTimestamp(mockColumn))
 }
 
+func (s *GrammarSuite) TestTypeUuid() {
+	mockColumn := mocksdriver.NewColumnDefinition(s.T())
+
+	s.Equal("char(36)", s.grammar.TypeUuid(mockColumn))
+}
+
+func (s *GrammarSuite) TestTypeUlid() {
+	mockColumn := mocksdriver.NewColumnDefinition(s.T())
+
+	s.Equal("char(26)", s.grammar.TypeUlid(mockColumn))
+}
+
 func TestGetCommandByName(t *testing.T) {
 	commands := []*contractsdriver.Command{
 		{Name: "create"},
