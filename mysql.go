@@ -107,7 +107,9 @@ func (r *Mysql) getVersion() string {
 	if err != nil {
 		return ""
 	}
-	defer db.Close()
+	defer func() {
+		_ = db.Close()
+	}()
 
 	var version struct {
 		Value string
