@@ -7,7 +7,7 @@ toolchain go1.25.1
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/Masterminds/squirrel v1.5.4
-	github.com/goravel/framework v1.16.1
+	github.com/goravel/framework v1.16.3
 	github.com/spf13/cast v1.10.0
 	github.com/stretchr/testify v1.10.0
 	gorm.io/driver/mysql v1.6.0
@@ -26,7 +26,7 @@ require (
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.9 // indirect
 	github.com/go-sql-driver/mysql v1.9.0 // indirect
-	github.com/go-viper/mapstructure/v2 v2.3.0 // indirect
+	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/gookit/color v1.5.4 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
