@@ -9,7 +9,7 @@ require (
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/goravel/framework v1.16.3
 	github.com/spf13/cast v1.10.0
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/gorm v1.31.0
 )
