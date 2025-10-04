@@ -24,22 +24,40 @@ var config = `map[string]any{
     }`
 
 func main() {
+	appConfigPath := path.Config("app.go")
+	databaseConfigPath := path.Config("database.go")
+	modulePath := packages.GetModulePath()
+	mysqlServiceProvider := "&mysql.ServiceProvider{}"
+	driverContract := "github.com/goravel/framework/contracts/database/driver"
+	mysqlFacades := "github.com/goravel/mysql/facades"
+
 	packages.Setup(os.Args).
 		Install(
-			modify.GoFile(path.Config("app.go")).
-				Find(match.Imports()).Modify(modify.AddImport(packages.GetModulePath())).
-				Find(match.Providers()).Modify(modify.Register("&mysql.ServiceProvider{}", "&database.ServiceProvider{}")),
-			modify.GoFile(path.Config("database.go")).
-				Find(match.Imports()).Modify(modify.AddImport("github.com/goravel/framework/contracts/database/driver"), modify.AddImport("github.com/goravel/mysql/facades", "mysqlfacades")).
-				Find(match.Config("database.connections")).Modify(modify.AddConfig("mysql", config)),
+			// Add mysql service provider to app.go
+			modify.GoFile(appConfigPath).
+				Find(match.Imports()).Modify(modify.AddImport(modulePath)).
+				Find(match.Providers()).Modify(modify.Register(mysqlServiceProvider)),
+
+			// Add mysql connection config to database.go
+			modify.GoFile(databaseConfigPath).
+				Find(match.Imports()).Modify(
+				modify.AddImport(driverContract),
+				modify.AddImport(mysqlFacades, "mysqlfacades"),
+			).
+				Find(match.Config("database.connections")).Modify(modify.AddConfig("mysql", config)).
+				Find(match.Config("database")).Modify(modify.AddConfig("default", `"mysql"`)),
 		).
 		Uninstall(
-			modify.GoFile(path.Config("app.go")).
-				Find(match.Providers()).Modify(modify.Unregister("&mysql.ServiceProvider{}")).
-				Find(match.Imports()).Modify(modify.RemoveImport(packages.GetModulePath())),
-			modify.GoFile(path.Config("database.go")).
+			// Remove mysql connection from database.go
+			modify.GoFile(databaseConfigPath).
+				Find(match.Config("database")).Modify(modify.AddConfig("default", `""`)).
 				Find(match.Config("database.connections")).Modify(modify.RemoveConfig("mysql")).
-				Find(match.Imports()).Modify(modify.RemoveImport("github.com/goravel/framework/contracts/database/driver"), modify.RemoveImport("github.com/goravel/mysql/facades", "mysqlfacades")),
+				Find(match.Imports()).Modify(modify.RemoveImport(driverContract), modify.RemoveImport(mysqlFacades, "mysqlfacades")),
+
+			// Remove mysql service provider from app.go
+			modify.GoFile(appConfigPath).
+				Find(match.Providers()).Modify(modify.Unregister(mysqlServiceProvider)).
+				Find(match.Imports()).Modify(modify.RemoveImport(modulePath)),
 		).
 		Execute()
 }
