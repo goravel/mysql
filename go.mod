@@ -2,7 +2,7 @@ module github.com/goravel/mysql
 
 go 1.23.0
 
-toolchain go1.25.2
+toolchain go1.25.3
 
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
