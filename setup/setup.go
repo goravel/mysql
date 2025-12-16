@@ -11,6 +11,7 @@ import (
 )
 
 func main() {
+	setup := packages.Setup(os.Args)
 	config := `map[string]any{
         "host":     config.Env("DB_HOST", "127.0.0.1"),
         "port":     config.Env("DB_PORT", 3306),
@@ -27,57 +28,54 @@ func main() {
 
 	appConfigPath := path.Config("app.go")
 	databaseConfigPath := path.Config("database.go")
-	modulePath := packages.GetModulePath()
+	moduleImport := setup.Paths().Module().Import()
 	mysqlServiceProvider := "&mysql.ServiceProvider{}"
 	driverContract := "github.com/goravel/framework/contracts/database/driver"
 	mysqlFacades := "github.com/goravel/mysql/facades"
 	databaseConnectionsConfig := match.Config("database.connections")
 	databaseConfig := match.Config("database")
 
-	packages.Setup(os.Args).
-		Install(
-			// Add mysql service provider to app.go if not using bootstrap setup
-			modify.When(func(_ map[string]any) bool {
-				return !env.IsBootstrapSetup()
-			}, modify.GoFile(appConfigPath).
-				Find(match.Imports()).Modify(modify.AddImport(modulePath)).
-				Find(match.Providers()).Modify(modify.Register(mysqlServiceProvider))),
+	setup.Install(
+		// Add mysql service provider to app.go if not using bootstrap setup
+		modify.When(func(_ map[string]any) bool {
+			return !env.IsBootstrapSetup()
+		}, modify.GoFile(appConfigPath).
+			Find(match.Imports()).Modify(modify.AddImport(moduleImport)).
+			Find(match.Providers()).Modify(modify.Register(mysqlServiceProvider))),
 
-			// Add mysql service provider to providers.go if using bootstrap setup
-			modify.When(func(_ map[string]any) bool {
-				return env.IsBootstrapSetup()
-			}, modify.AddProviderApply(modulePath, mysqlServiceProvider)),
+		// Add mysql service provider to providers.go if using bootstrap setup
+		modify.When(func(_ map[string]any) bool {
+			return env.IsBootstrapSetup()
+		}, modify.AddProviderApply(moduleImport, mysqlServiceProvider)),
 
-			// Add mysql connection config to database.go
-			modify.GoFile(databaseConfigPath).
-				Find(match.Imports()).Modify(
-				modify.AddImport(driverContract),
-				modify.AddImport(mysqlFacades, "mysqlfacades"),
-			).
-				Find(databaseConnectionsConfig).Modify(modify.AddConfig("mysql", config)).
-				Find(databaseConfig).Modify(modify.AddConfig("default", `"mysql"`)),
+		// Add mysql connection config to database.go
+		modify.GoFile(databaseConfigPath).
+			Find(match.Imports()).Modify(
+			modify.AddImport(driverContract),
+			modify.AddImport(mysqlFacades, "mysqlfacades"),
 		).
-		Uninstall(
-			// Remove mysql connection from database.go
-			modify.GoFile(databaseConfigPath).
-				Find(databaseConfig).Modify(modify.AddConfig("default", `""`)).
-				Find(databaseConnectionsConfig).Modify(modify.RemoveConfig("mysql")).
-				Find(match.Imports()).Modify(
-				modify.RemoveImport(driverContract),
-				modify.RemoveImport(mysqlFacades, "mysqlfacades"),
-			),
+			Find(databaseConnectionsConfig).Modify(modify.AddConfig("mysql", config)).
+			Find(databaseConfig).Modify(modify.AddConfig("default", `"mysql"`)),
+	).Uninstall(
+		// Remove mysql connection from database.go
+		modify.GoFile(databaseConfigPath).
+			Find(databaseConfig).Modify(modify.AddConfig("default", `""`)).
+			Find(databaseConnectionsConfig).Modify(modify.RemoveConfig("mysql")).
+			Find(match.Imports()).Modify(
+			modify.RemoveImport(driverContract),
+			modify.RemoveImport(mysqlFacades, "mysqlfacades"),
+		),
 
-			// Remove mysql service provider from app.go if not using bootstrap setup
-			modify.When(func(_ map[string]any) bool {
-				return !env.IsBootstrapSetup()
-			}, modify.GoFile(appConfigPath).
-				Find(match.Providers()).Modify(modify.Unregister(mysqlServiceProvider)).
-				Find(match.Imports()).Modify(modify.RemoveImport(modulePath))),
+		// Remove mysql service provider from app.go if not using bootstrap setup
+		modify.When(func(_ map[string]any) bool {
+			return !env.IsBootstrapSetup()
+		}, modify.GoFile(appConfigPath).
+			Find(match.Providers()).Modify(modify.Unregister(mysqlServiceProvider)).
+			Find(match.Imports()).Modify(modify.RemoveImport(moduleImport))),
 
-			// Remove mysql service provider from providers.go if using bootstrap setup
-			modify.When(func(_ map[string]any) bool {
-				return env.IsBootstrapSetup()
-			}, modify.RemoveProviderApply(modulePath, mysqlServiceProvider)),
-		).
-		Execute()
+		// Remove mysql service provider from providers.go if using bootstrap setup
+		modify.When(func(_ map[string]any) bool {
+			return env.IsBootstrapSetup()
+		}, modify.RemoveProviderApply(moduleImport, mysqlServiceProvider)),
+	).Execute()
 }
