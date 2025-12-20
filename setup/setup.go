@@ -58,12 +58,12 @@ func main() {
 			Find(databaseConfig).Modify(modify.AddConfig("default", `"mysql"`)),
 	).Uninstall(
 		// Remove mysql connection from database.go
-		modify.GoFile(databaseConfigPath).
+		modify.WhenFileExists(databaseConfigPath, modify.GoFile(databaseConfigPath).
 			Find(databaseConfig).Modify(modify.AddConfig("default", `""`)).
 			Find(databaseConnectionsConfig).Modify(modify.RemoveConfig("mysql")).
 			Find(match.Imports()).Modify(
 			modify.RemoveImport(driverContract),
-			modify.RemoveImport(mysqlFacades, "mysqlfacades"),
+			modify.RemoveImport(mysqlFacades, "mysqlfacades")),
 		),
 
 		// Remove mysql service provider from app.go if not using bootstrap setup
