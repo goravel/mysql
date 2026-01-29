@@ -46,7 +46,7 @@ func (r *ServiceProvider) Register(app foundation.Application) {
 			return nil, errors.LogFacadeNotSet.SetModule(Name)
 		}
 
-		return NewMysql(config, log, parameters["connection"].(string)), nil
+		return NewMysql(config, log, app.MakeProcess(), parameters["connection"].(string)), nil
 	})
 }
 
