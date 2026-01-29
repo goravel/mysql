@@ -171,11 +171,7 @@ func (r *Docker) Reuse(containerID string, port int) error {
 }
 
 func (r *Docker) Shutdown() error {
-	if res := r.process.Run(fmt.Sprintf("docker stop %s", r.databaseConfig.ContainerID)); res.Failed() {
-		return fmt.Errorf("stop Mysql error: %v", res.Error())
-	}
-
-	return nil
+	return r.imageDriver.Shutdown()
 }
 
 func (r *Docker) connect(username ...string) (*gormio.DB, error) {
