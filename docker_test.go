@@ -32,9 +32,7 @@ func (s *DockerTestSuite) SetupTest() {
 	s.username = "goravel"
 	s.password = "Framework!123"
 	s.mockConfig = config.NewConfig(s.T())
-	docker, err := NewDocker(NewConfig(s.mockConfig, s.connection), process.New(), s.database, s.username, s.password)
-	s.Require().NoError(err)
-	s.docker = docker
+	s.docker = NewDocker(NewConfig(s.mockConfig, s.connection), process.New(), s.database, s.username, s.password)
 }
 
 func (s *DockerTestSuite) Test_Build_Config_AddData_Fresh_Shutdown() {

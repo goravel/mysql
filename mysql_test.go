@@ -25,12 +25,11 @@ func TestVersion(t *testing.T) {
 		},
 	}
 
-	docker, err := NewDocker(nil, process.New(), writes[0].Database, writes[0].Username, writes[0].Password)
-	assert.NoError(t, err)
+	docker := NewDocker(nil, process.New(), writes[0].Database, writes[0].Username, writes[0].Password)
 	assert.NoError(t, docker.Build())
 
 	writes[0].Port = docker.databaseConfig.Port
-	_, err = docker.connect()
+	_, err := docker.connect()
 	assert.NoError(t, err)
 
 	mockConfig := mocks.NewConfigBuilder(t)
@@ -62,12 +61,11 @@ func TestIssue706(t *testing.T) {
 		},
 	}
 
-	docker, err := NewDocker(nil, process.New(), writes[0].Database, writes[0].Username, writes[0].Password)
-	assert.NoError(t, err)
+	docker := NewDocker(nil, process.New(), writes[0].Database, writes[0].Username, writes[0].Password)
 	assert.NoError(t, docker.Build())
 
 	writes[0].Port = docker.databaseConfig.Port
-	_, err = docker.connect()
+	_, err := docker.connect()
 	assert.NoError(t, err)
 
 	mockConfig := mocks.NewConfigBuilder(t)

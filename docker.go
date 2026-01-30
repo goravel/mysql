@@ -24,11 +24,7 @@ type Docker struct {
 	process        contractsprocess.Process
 }
 
-func NewDocker(config contracts.ConfigBuilder, process contractsprocess.Process, database, username, password string) (*Docker, error) {
-	if process == nil {
-		return nil, fmt.Errorf("process facade not set")
-	}
-
+func NewDocker(config contracts.ConfigBuilder, process contractsprocess.Process, database, username, password string) *Docker {
 	env := []string{
 		"MYSQL_ROOT_PASSWORD=" + password,
 		"MYSQL_DATABASE=" + database,
@@ -55,7 +51,7 @@ func NewDocker(config contracts.ConfigBuilder, process contractsprocess.Process,
 			ExposedPorts: []string{"3306"},
 		}, process),
 		process: process,
-	}, nil
+	}
 }
 
 func (r *Docker) Build() error {
@@ -98,11 +94,7 @@ func (r *Docker) Database(name string) (contractsdocker.DatabaseDriver, error) {
 		}
 	}()
 
-	docker, err := NewDocker(r.config, r.process, name, r.databaseConfig.Username, r.databaseConfig.Password)
-	if err != nil {
-		return nil, err
-	}
-
+	docker := NewDocker(r.config, r.process, name, r.databaseConfig.Username, r.databaseConfig.Password)
 	docker.databaseConfig.ContainerID = r.databaseConfig.ContainerID
 	docker.databaseConfig.Port = r.databaseConfig.Port
 

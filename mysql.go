@@ -36,12 +36,16 @@ func NewMysql(config config.Config, log log.Log, process process.Process, connec
 }
 
 func (r *Mysql) Docker() (docker.DatabaseDriver, error) {
+	if r.process == nil {
+		return nil, fmt.Errorf("process facade not set")
+	}
+
 	writers := r.config.Writers()
 	if len(writers) == 0 {
 		return nil, errors.DatabaseConfigNotFound
 	}
 
-	return NewDocker(r.config, r.process, writers[0].Database, writers[0].Username, writers[0].Password)
+	return NewDocker(r.config, r.process, writers[0].Database, writers[0].Username, writers[0].Password), nil
 }
 
 func (r *Mysql) Grammar() contractsdriver.Grammar {
