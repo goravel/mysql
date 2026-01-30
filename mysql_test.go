@@ -3,6 +3,7 @@ package mysql
 import (
 	"testing"
 
+	"github.com/goravel/framework/process"
 	"github.com/goravel/framework/testing/utils"
 	"github.com/goravel/mysql/contracts"
 	mocks "github.com/goravel/mysql/mocks"
@@ -24,11 +25,12 @@ func TestVersion(t *testing.T) {
 		},
 	}
 
-	docker := NewDocker(nil, writes[0].Database, writes[0].Username, writes[0].Password)
+	docker, err := NewDocker(nil, process.New(), writes[0].Database, writes[0].Username, writes[0].Password)
+	assert.NoError(t, err)
 	assert.NoError(t, docker.Build())
 
 	writes[0].Port = docker.databaseConfig.Port
-	_, err := docker.connect()
+	_, err = docker.connect()
 	assert.NoError(t, err)
 
 	mockConfig := mocks.NewConfigBuilder(t)
@@ -60,11 +62,12 @@ func TestIssue706(t *testing.T) {
 		},
 	}
 
-	docker := NewDocker(nil, writes[0].Database, writes[0].Username, writes[0].Password)
+	docker, err := NewDocker(nil, process.New(), writes[0].Database, writes[0].Username, writes[0].Password)
+	assert.NoError(t, err)
 	assert.NoError(t, docker.Build())
 
 	writes[0].Port = docker.databaseConfig.Port
-	_, err := docker.connect()
+	_, err = docker.connect()
 	assert.NoError(t, err)
 
 	mockConfig := mocks.NewConfigBuilder(t)

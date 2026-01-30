@@ -8,6 +8,7 @@ import (
 	"github.com/goravel/framework/contracts/database"
 	contractsdriver "github.com/goravel/framework/contracts/database/driver"
 	"github.com/goravel/framework/contracts/log"
+	"github.com/goravel/framework/contracts/process"
 	"github.com/goravel/framework/contracts/testing/docker"
 	"github.com/goravel/framework/errors"
 	"github.com/goravel/framework/support/str"
@@ -22,13 +23,15 @@ var _ contractsdriver.Driver = &Mysql{}
 type Mysql struct {
 	config  contracts.ConfigBuilder
 	log     log.Log
+	process process.Process
 	version string
 }
 
-func NewMysql(config config.Config, log log.Log, connection string) *Mysql {
+func NewMysql(config config.Config, log log.Log, process process.Process, connection string) *Mysql {
 	return &Mysql{
-		config: NewConfig(config, connection),
-		log:    log,
+		config:  NewConfig(config, connection),
+		log:     log,
+		process: process,
 	}
 }
 
@@ -38,7 +41,7 @@ func (r *Mysql) Docker() (docker.DatabaseDriver, error) {
 		return nil, errors.DatabaseConfigNotFound
 	}
 
-	return NewDocker(r.config, writers[0].Database, writers[0].Username, writers[0].Password), nil
+	return NewDocker(r.config, r.process, writers[0].Database, writers[0].Username, writers[0].Password)
 }
 
 func (r *Mysql) Grammar() contractsdriver.Grammar {

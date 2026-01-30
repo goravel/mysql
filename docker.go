@@ -5,10 +5,10 @@ import (
 	"strconv"
 	"time"
 
+	contractsprocess "github.com/goravel/framework/contracts/process"
 	contractsdocker "github.com/goravel/framework/contracts/testing/docker"
 	"github.com/goravel/framework/support/color"
 	supportdocker "github.com/goravel/framework/support/docker"
-	"github.com/goravel/framework/support/process"
 	testingdocker "github.com/goravel/framework/testing/docker"
 	"github.com/spf13/cast"
 	"gorm.io/driver/mysql"
@@ -21,9 +21,14 @@ type Docker struct {
 	config         contracts.ConfigBuilder
 	databaseConfig contractsdocker.DatabaseConfig
 	imageDriver    contractsdocker.ImageDriver
+	process        contractsprocess.Process
 }
 
-func NewDocker(config contracts.ConfigBuilder, database, username, password string) *Docker {
+func NewDocker(config contracts.ConfigBuilder, process contractsprocess.Process, database, username, password string) (*Docker, error) {
+	if process == nil {
+		return nil, fmt.Errorf("process facade not set")
+	}
+
 	env := []string{
 		"MYSQL_ROOT_PASSWORD=" + password,
 		"MYSQL_DATABASE=" + database,
@@ -48,8 +53,9 @@ func NewDocker(config contracts.ConfigBuilder, database, username, password stri
 			Tag:          "latest",
 			Env:          env,
 			ExposedPorts: []string{"3306"},
-		}),
-	}
+		}, process),
+		process: process,
+	}, nil
 }
 
 func (r *Docker) Build() error {
@@ -92,7 +98,11 @@ func (r *Docker) Database(name string) (contractsdocker.DatabaseDriver, error) {
 		}
 	}()
 
-	docker := NewDocker(r.config, name, r.databaseConfig.Username, r.databaseConfig.Password)
+	docker, err := NewDocker(r.config, r.process, name, r.databaseConfig.Username, r.databaseConfig.Password)
+	if err != nil {
+		return nil, err
+	}
+
 	docker.databaseConfig.ContainerID = r.databaseConfig.ContainerID
 	docker.databaseConfig.Port = r.databaseConfig.Port
 
@@ -139,7 +149,7 @@ func (r *Docker) Fresh() error {
 }
 
 func (r *Docker) Image(image contractsdocker.Image) {
-	r.imageDriver = testingdocker.NewImageDriver(image)
+	r.imageDriver = testingdocker.NewImageDriver(image, r.process)
 }
 
 func (r *Docker) Ready() error {
@@ -161,11 +171,7 @@ func (r *Docker) Reuse(containerID string, port int) error {
 }
 
 func (r *Docker) Shutdown() error {
-	if _, err := process.Run(fmt.Sprintf("docker stop %s", r.databaseConfig.ContainerID)); err != nil {
-		return fmt.Errorf("stop Mysql error: %v", err)
-	}
-
-	return nil
+	return r.imageDriver.Shutdown()
 }
 
 func (r *Docker) connect(username ...string) (*gormio.DB, error) {

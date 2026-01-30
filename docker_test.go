@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/goravel/framework/mocks/config"
+	"github.com/goravel/framework/process"
 	"github.com/goravel/mysql/contracts"
 	"github.com/stretchr/testify/suite"
 )
@@ -31,7 +32,9 @@ func (s *DockerTestSuite) SetupTest() {
 	s.username = "goravel"
 	s.password = "Framework!123"
 	s.mockConfig = config.NewConfig(s.T())
-	s.docker = NewDocker(NewConfig(s.mockConfig, s.connection), s.database, s.username, s.password)
+	docker, err := NewDocker(NewConfig(s.mockConfig, s.connection), process.New(), s.database, s.username, s.password)
+	s.Require().NoError(err)
+	s.docker = docker
 }
 
 func (s *DockerTestSuite) Test_Build_Config_AddData_Fresh_Shutdown() {
