@@ -46,7 +46,7 @@ func main() {
 		// Add mysql service provider to providers.go if using bootstrap setup
 		modify.When(func(_ map[string]any) bool {
 			return env.IsBootstrapSetup()
-		}, modify.AddProviderApply(moduleImport, mysqlServiceProvider)),
+		}, modify.RegisterProvider(moduleImport, mysqlServiceProvider)),
 
 		// Add mysql connection config to database.go
 		modify.GoFile(databaseConfigPath).
@@ -76,6 +76,6 @@ func main() {
 		// Remove mysql service provider from providers.go if using bootstrap setup
 		modify.When(func(_ map[string]any) bool {
 			return env.IsBootstrapSetup()
-		}, modify.RemoveProviderApply(moduleImport, mysqlServiceProvider)),
+		}, modify.UnregisterProvider(moduleImport, mysqlServiceProvider)),
 	).Execute()
 }
