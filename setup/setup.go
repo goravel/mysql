@@ -23,7 +23,7 @@ func main() {
         "prefix":   "",
         "singular": false,
         "via": func() (driver.Driver, error) {
-            return mysqlfacades.Mysql(` + driver + `)
+            return mysqlfacades.Mysql("` + driver + `")
         },
     }`
 
