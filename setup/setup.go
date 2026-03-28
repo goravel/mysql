@@ -12,6 +12,7 @@ import (
 
 func main() {
 	setup := packages.Setup(os.Args)
+	driver := "mysql"
 	config := `map[string]any{
         "host":     config.Env("DB_HOST"),
         "port":     config.Env("DB_PORT"),
@@ -22,7 +23,7 @@ func main() {
         "prefix":   "",
         "singular": false,
         "via": func() (driver.Driver, error) {
-            return mysqlfacades.Mysql("mysql")
+            return mysqlfacades.Mysql(` + driver + `)
         },
     }`
 
@@ -49,18 +50,19 @@ func main() {
 		}, modify.RegisterProvider(moduleImport, mysqlServiceProvider)),
 
 		// Add mysql connection config to database.go
-		modify.GoFile(databaseConfigPath).
-			Find(match.Imports()).Modify(
+		modify.GoFile(databaseConfigPath).Find(match.Imports()).Modify(
 			modify.AddImport(driverContract),
 			modify.AddImport(mysqlFacades, "mysqlfacades"),
-		).
-			Find(databaseConnectionsConfig).Modify(modify.AddConfig("mysql", config)).
-			Find(databaseConfig).Modify(modify.AddConfig("default", `"mysql"`)),
+		).Find(databaseConnectionsConfig).Modify(modify.AddConfig(driver, config)),
+
+		// Add DB_CONNECTION=mysql to .env
+		modify.WhenFileExists(path.Base(".env"), modify.Env(path.Base(".env"), "DB_CONNECTION", driver)),
+		modify.WhenFileExists(path.Base(".env.example"), modify.Env(path.Base(".env.example"), "DB_CONNECTION", driver)),
 	).Uninstall(
 		// Remove mysql connection from database.go
 		modify.WhenFileExists(databaseConfigPath, modify.GoFile(databaseConfigPath).
 			Find(databaseConfig).Modify(modify.AddConfig("default", `""`)).
-			Find(databaseConnectionsConfig).Modify(modify.RemoveConfig("mysql")).
+			Find(databaseConnectionsConfig).Modify(modify.RemoveConfig(driver)).
 			Find(match.Imports()).Modify(
 			modify.RemoveImport(driverContract),
 			modify.RemoveImport(mysqlFacades, "mysqlfacades")),
