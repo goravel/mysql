@@ -61,7 +61,6 @@ func main() {
 	).Uninstall(
 		// Remove mysql connection from database.go
 		modify.WhenFileExists(databaseConfigPath, modify.GoFile(databaseConfigPath).
-			Find(databaseConfig).Modify(modify.AddConfig("default", `""`)).
 			Find(databaseConnectionsConfig).Modify(modify.RemoveConfig(driver)).
 			Find(match.Imports()).Modify(
 			modify.RemoveImport(driverContract),
