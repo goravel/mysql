@@ -34,7 +34,6 @@ func main() {
 	driverContract := "github.com/goravel/framework/contracts/database/driver"
 	mysqlFacades := "github.com/goravel/mysql/facades"
 	databaseConnectionsConfig := match.Config("database.connections")
-	databaseConfig := match.Config("database")
 
 	setup.Install(
 		// Add mysql service provider to app.go if not using bootstrap setup
