@@ -268,7 +268,7 @@ func (r *Grammar) CompileJsonColumnsUpdate(values map[string]any) (map[string]an
 			column, path := segments[0], strings.Trim(r.wrap.JsonPath(segments[1]), "'")
 
 			val := reflect.ValueOf(value)
-			if val.Kind() == reflect.Ptr {
+			if val.Kind() == reflect.Pointer {
 				val = val.Elem()
 			}
 
@@ -332,7 +332,7 @@ func (r *Grammar) CompileJsonSelector(column string) string {
 func (r *Grammar) CompileJsonValues(args ...any) []any {
 	for i, arg := range args {
 		val := reflect.ValueOf(arg)
-		if val.Kind() == reflect.Ptr {
+		if val.Kind() == reflect.Pointer {
 			if val.IsNil() {
 				continue
 			}
