@@ -5,7 +5,7 @@ go 1.25.0
 toolchain go1.26.2
 
 require (
-	github.com/Masterminds/semver/v3 v3.4.0
+	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/goravel/framework v1.17.2-0.20260328015200-5bd142c2eac3
 	github.com/spf13/cast v1.10.0
